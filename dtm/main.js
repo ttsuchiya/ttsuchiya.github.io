@@ -647,7 +647,7 @@ app.controller('MainController', function ($scope) {
     });
 
     var PI;
-    dtm.txt('pi.txt', function (data) {
+    dtm.txt('data/pi.txt', function (data) {
         // PI = data.split().remove.at(1)(dtm.range(1000)).num();
         PI = dtm.data(3).concat(data.split()(dtm.range(2,1000)).tonum());
     });
