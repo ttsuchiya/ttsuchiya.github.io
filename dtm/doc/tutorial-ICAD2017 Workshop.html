@@ -289,17 +289,17 @@ dtm.music().play().for(2).amp(a); // The envelope is further time-scaled by the 
 <pre class="prettyprint source lang-javascript"><code>a = dtm.data(1, 2, 10);
 
 // Read the data at a fractional index value.
-a().interp(0.5); // Gives 1.5
-a().interp(1.5); // Gives 6
+a.interp(0.5); // Gives 1.5
+a.interp(1.5); // Gives 6
 
 // Read the data at a relative phase value (between 0-1, or beyond).
-a().phase(0.5); // Gives 2
-a().phase(0.25, 0.75); // Gives [1.5, 6]
+a.phase(0.5); // Gives 2
+a.phase(0.25, 0.75); // Gives [1.5, 6]
 
 // Read the data using a phasor function.
 p = dtm.line(100); // Creates a 100-points line between 0-1.
 p.curve(10); // Apply some logarithmic scaling.
-a().phase(p); // Interpolate through the data points.</code></pre><h4>Pseudo-musical Modulation</h4><p>The resampling techniques in DTM enable some unconventional list transformations such as frequency modulation (FM) and amplitude modulation (AM). This lets data to transform quite dynamically and generate interesting patterns. Watch out though, these operations are bound to the number of samples in the data, so you may need to resample (interpolate) into a sufficient length first. Otherwise, you may get a low-resolution &quot;strobe&quot; effect.</p>
+a.phase(p); // Interpolate through the data points.</code></pre><h4>Pseudo-musical Modulation</h4><p>The resampling techniques in DTM enable some unconventional list transformations such as frequency modulation (FM) and amplitude modulation (AM). This lets data to transform quite dynamically and generate interesting patterns. Watch out though, these operations are bound to the number of samples in the data, so you may need to resample (interpolate) into a sufficient length first. Otherwise, you may get a low-resolution &quot;strobe&quot; effect.</p>
 <pre class="prettyprint source lang-javascript"><code>a = dtm.data(0, -1, 1, 0)
   .sstep(100) // Stretch to 100 times longer with step interpolation.
   .freq(10, 30, -20) // You can have multiple points (segments) with different frequency.</code></pre><h3>Cloning Data Object</h3><p>This is where it gets a little confusing and tricky. Section ... described that calling the data object itself as function (i.e., <code>data(index)</code>) was used to get some value(s) or column(s) of the data object at the index. Actually, this is creating a copy(s) of the data contents rather than returning the reference to the original data points. When we call the data object without passing any index values, like <code>data()</code>, it returns a copy of the entire data object. This is quite useful and essential for controlling the state of a complex sonification system, where you may have a data source mapped to multiple parameters with different transformations applied to them. By cloning a data object, any further changes in the original data would <em>not</em> reflect on the newly cloned object.</p>
@@ -446,12 +446,12 @@ dtm.music().play()
 // The above nested-music object won't do anything without explicitly playing or triggering.
 // The &quot;trigger&quot; function starts the music object, but will play silently.
 mus.trigger(); // Trigger once.
-mus.trigger().rep().at(0.5) // Trigger repeatedly and iterate.</code></pre><h3>Scanning Data with dtm.music</h3><p>Lastly, the music object is also capable of a very fast and continuous reading of data using its <code>phase</code> callback function. It provides an argument (a <code>dtm.data</code> object) containing the current phase (starting from 0 and ending at 1) of the musical event, which can be used in combination with the <code>data.phase()</code>. However, as <code>data.phase()</code> overwrites the content of the data with the value at the current phase, you may want to clone the data first before reading by the phasor. </p>
+mus.trigger().rep().at(0.5) // Trigger repeatedly and iterate.</code></pre><h3>Scanning Data with dtm.music</h3><p>Lastly, the music object is also capable of a very fast and continuous reading of data using its <code>phase</code> callback function. It provides an argument (a <code>dtm.data</code> object) containing the current phase (starting from 0 and ending at 1) of the musical event, which can be used in combination with the <code>data.phase()</code>. </p>
 <pre class="prettyprint source lang-javascript"><code>dtm.music()
   .trigger() // Start the music object without sound.
   .for(3) // Set the duration to 3 seconds.
   .phase(p => {
-    data().phase(p).print();
+    data.phase(p).print();
   });</code></pre><p>The phase curve in <code>dtm.music</code> can be modified with the <code>curve</code> function, allowing a continuous non-linear motion.</p>
 <pre class="prettyprint source lang-javascript"><code>a = dtm.data(10, 20); // Create a range (extent) of frequency values.
 b = dtm.data(0, 1, 0.5, -0.5, 0); // Create a nonlinear phase function.
@@ -459,7 +459,7 @@ b = dtm.data(0, 1, 0.5, -0.5, 0); // Create a nonlinear phase function.
 mus.trigger().for(5)
   .phase(p => {
     // A sine wave with frequency modulation. 
-    dtm.sin().freq(a().mphase(p)) // A &quot;mirrored&quot; phase function.
+    dtm.sin().freq(a.mphase(p)) // A &quot;mirrored&quot; phase function.
       .plot();
   })
   .curve(b); // Set the nonlinear phase motion.</code></pre>
