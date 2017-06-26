@@ -182,7 +182,7 @@ dtm.scale(name); // Creates a common musical scale, such as Ionian, etc.
 dtm.sine(size); // Generates a sine wave ranging between -1 to 1.
 dtm.random(size, min, max); // Generates uniform-random fractional values.
 dtm.randi(size, min, max+1); // Generates random integer values.</code></pre><p>The <code>dtm.gen</code> family returns a <code>dtm.data</code> object, so you can process them further with the regular <code>dtm.data</code> functions.</p>
-<h3>Loading External Data File</h3><p>In data sonification, we are often more interested in using existing real-world data than generated data. The <code>dtm.loader</code> is equipped with various ways to load or stream data, including CSV, JSON, text, image, audio files, web services (REST calls), as well as the stream of data from camera and microphone on your computer. As explained before in <a href="#2.-hosting-data-and-publishing-a-website">Section 2</a>, in many cases, you need to host the data file in your server and access its URL like this:</p>
+<h3>Loading External Data File</h3><p>In data sonification, we are often more interested in using existing real-world data than generated data. The <code>dtm.loader</code> is equipped with various ways to load or stream data, including CSV, JSON, text, image, audio files, web services (REST calls), as well as the stream of data from camera and microphone on your computer. As explained before in <a href="#L2.-hosting-data-and-publishing-a-website">Section 2</a>, in many cases, you need to host the data file in your server and access its URL like this:</p>
 <pre class="prettyprint source lang-javascript"><code>url = window.location.href + 'data.csv';
 dtm.csv(url, data => data.print());</code></pre><p>For convenience, the <a href="https://ttsuchiya.github.io/dtm/">online editor</a> provides the <code>FILE</code> button for loading local files. This will load the file into a data object, a global variable, named as <code>file</code>.</p>
 <pre class="prettyprint source lang-javascript"><code>file.print(); // After loading a local file, such as a CSV file, check the content of the &quot;file&quot; object.
@@ -204,7 +204,7 @@ r.rev(); // Reverse the direction of the indices.
 c = data(r);</code></pre><p>As you see in the third example with <code>c</code>, we can have the index data in a descending order. What happens if we use a sine generator as indices? </p>
 <pre class="prettyprint source lang-javascript"><code>// Create a 100-point sine curve with the range.
 r = dtm.sine(100).range(-30, 30);
-a = data(r);</code></pre><p>When the index value is fractional, it is automatically rounded to get the nearest data point. We can also estimate the values between data points using fractional indices, and we will be introducing how to this in a <a href="#accessing-data-advanced">later section</a>.</p>
+a = data(r);</code></pre><p>When the index value is fractional, it is automatically rounded to get the nearest data point. We can also estimate the values between data points using fractional indices, and we will be introducing how to this in a <a href="#accessing-data--advanced-">later section</a>.</p>
 <h3>Transforming and Analyzing Data</h3><p>A <code>dtm.data</code> object is equipped with tons of list-processing functions -- some are common and basic, but some are quite unusual and weird (but perhaps musically useful). We only list a limited potion here. For the complete list, please see the <a href="https://ttsuchiya.github.io/dtm/doc">API documentation</a>. </p>
 <p>First, here are some scaling and arithmetic operations.</p>
 <pre class="prettyprint source lang-javascript"><code>// Rescales each values to a new range. 
@@ -260,7 +260,7 @@ data.entropy(); // Measure &quot;randomness&quot; of the data.
 data.dct(); // DCT (Type II).
 data.idct(); // Inverse DCT.
 data.fft(); // FFT analysis (Currently only gives the magnitude spectrum of the signal.)
-data.fir(coef); // Apply an FIR filter.</code></pre><p>Many of these analytical functions overwrites the existing content with a summarized data. If you want to keep the original data for later use, you would need to clone the source object. Please read the following section <a href="#cloning">Cloning</a>. </p>
+data.fir(coef); // Apply an FIR filter.</code></pre><p>Many of these analytical functions overwrites the existing content with a summarized data. If you want to keep the original data for later use, you would need to clone the source object. Please read the following section <a href="#cloning-data-object">Cloning Data Object</a>. </p>
 <h3>Interpolation and Morphing</h3><p>Pherhaps the most useful features in <code>dtm.data</code>, you can stretch or shrink one-dimensional data into any length regardless of the original size. There are two ways to do this, the <code>stretch</code> method with a stretch factor and the <code>fit</code> method with the target length. They can use one of four interpolation methods -- <code>linear</code> (default), <code>step</code>, <code>cosine</code>, and <code>cubic</code> interpolation. </p>
 <pre class="prettyprint source lang-javascript"><code>// Fit method takes a target length(s) and mode parameters.
 data.fit(100); // Linear interpolation into the length of 100.
@@ -302,7 +302,7 @@ p.curve(10); // Apply some logarithmic scaling.
 a.phase(p); // Interpolate through the data points.</code></pre><h4>Pseudo-musical Modulation</h4><p>The resampling techniques in DTM enable some unconventional list transformations such as frequency modulation (FM) and amplitude modulation (AM). This lets data to transform quite dynamically and generate interesting patterns. Watch out though, these operations are bound to the number of samples in the data, so you may need to resample (interpolate) into a sufficient length first. Otherwise, you may get a low-resolution &quot;strobe&quot; effect.</p>
 <pre class="prettyprint source lang-javascript"><code>a = dtm.data(0, -1, 1, 0)
   .sstep(100) // Stretch to 100 times longer with step interpolation.
-  .freq(10, 30, -20) // You can have multiple points (segments) with different frequency.</code></pre><h3>Cloning Data Object</h3><p>This is where it gets a little confusing and tricky. Section ... described that calling the data object itself as function (i.e., <code>data(index)</code>) was used to get some value(s) or column(s) of the data object at the index. Actually, this is creating a copy(s) of the data contents rather than returning the reference to the original data points. When we call the data object without passing any index values, like <code>data()</code>, it returns a copy of the entire data object. This is quite useful and essential for controlling the state of a complex sonification system, where you may have a data source mapped to multiple parameters with different transformations applied to them. By cloning a data object, any further changes in the original data would <em>not</em> reflect on the newly cloned object.</p>
+  .freq(10, 30, -20) // You can have multiple points (segments) with different frequency.</code></pre><h3>Cloning Data Object</h3><p>This is where it gets a little confusing and tricky. Section <a href="#accessing-data--basic-">Accessing Data (Basic)</a> described that calling the data object itself as function (i.e., <code>data(index)</code>) was used to get some value(s) or column(s) of the data object at the index. Actually, this is creating a copy(s) of the data contents rather than returning the reference to the original data points. When we call the data object without passing any index values, like <code>data()</code>, it returns a copy of the entire data object. This is quite useful and essential for controlling the state of a complex sonification system, where you may have a data source mapped to multiple parameters with different transformations applied to them. By cloning a data object, any further changes in the original data would <em>not</em> reflect on the newly cloned object.</p>
 <pre class="prettyprint source lang-javascript"><code>a = dtm.data(1, 2, 3); // Create a new object, as usual.
 b = a.fit(10); // This variable &quot;b&quot; simply points to the variable &quot;a,&quot; the same object. Not very useful, actually.
 c = a(); // Create a copy of &quot;a&quot; and assign to a new variable.
@@ -504,7 +504,7 @@ mus.trigger().for(5)
 <span class="jsdoc-message">
 	Documentation generated by <a href="https://github.com/jsdoc3/jsdoc">JSDoc 3.4.3</a>
 	
-		on Tue Jun 20th 2017
+		on Mon Jun 26th 2017
 	
 	using the <a href="https://github.com/docstrap/docstrap">DocStrap template</a>.
 </span>
