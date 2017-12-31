@@ -602,6 +602,29 @@ app.controller('MainController', function ($scope) {
         }
     };
 
+    function wordAt(cm, pos) {
+        var start = pos.ch, end = start, line = cm.getLine(pos.line);
+        while (start && CodeMirror.isWordChar(line.charAt(start - 1))) --start;
+        while (end < line.length && CodeMirror.isWordChar(line.charAt(end))) ++end;
+        return {from: CodeMirror.Pos(pos.line, start), to: CodeMirror.Pos(pos.line, end), word: line.slice(start, end)};
+    }
+
+    function wordUnderCursor() {
+        return wordAt(editor, editor.getCursor());
+    }
+
+    function incDec(mode) {
+        var target = wordUnderCursor();
+        var num = parseInt(target.word);
+        if (dtm.util.isNumber(num)) {
+            if (mode === 'inc') {
+                editor.replaceRange((++num).toString(), target.from, target.to);
+            } else {
+                editor.replaceRange((--num).toString(), target.from, target.to);
+            }
+        }
+    }
+
     editor.setOption('extraKeys', {
         'Cmd-R': $scope.evalAll,
         'Cmd-Enter': $scope.evalAll,
@@ -619,6 +642,8 @@ app.controller('MainController', function ($scope) {
         'Ctrl-Right': 'goWordRight',
         'Ctrl-Down': 'swapLineDown',
         'Ctrl-Up': 'swapLineUp',
+        'Alt-Up': function () { incDec('inc'); },
+        'Alt-Down': function () { incDec('dec'); },
         // 'Shift-Enter': function () {
         //     editor.execCommand('goLineEnd');
         //     editor.execCommand('newlineAndIndent');
