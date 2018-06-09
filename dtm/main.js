@@ -184,7 +184,7 @@ app.controller('MainController', function ($scope, $document) {
 
         editor.refresh();
 
-        dtm.csv('data/gasprice.csv', function (D) {
+        dtm.csv('./data/gasprice.csv', function (D) {
             gasprice = D;
         });
     };
