@@ -1,6 +1,6 @@
 var app = angular.module('dtmDemo', []);
 var data = [], url, file;
-var gasprice, userdata;
+var gasprice;
 var useOsc = true;
 var playhead;
 
@@ -186,10 +186,6 @@ app.controller('MainController', function ($scope, $document) {
 
         dtm.csv('data/gasprice.csv', function (D) {
             gasprice = D;
-        });
-
-        dtm.csv('data/icad2018.csv', function (D) {
-            userdata = D;
         });
     };
 
