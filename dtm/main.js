@@ -1,8 +1,8 @@
 var app = angular.module('dtmDemo', []);
 var data = [], url, file;
-var useOsc = false;
-
-var temp, humid;
+var gasprice, userdata;
+var useOsc = true;
+var playhead;
 
 Float32Array.prototype.map = function(callback, thisArg) {
     var T, A, k;
@@ -38,7 +38,7 @@ Float32Array.prototype.map = function(callback, thisArg) {
     return A;
 };
 
-app.controller('MainController', function ($scope) {
+app.controller('MainController', function ($scope, $document) {
     url = Cookies.get('url');
 
     function setBackgroundImage(_url) {
@@ -56,6 +56,8 @@ app.controller('MainController', function ($scope) {
     }
 
     var svgW = window.innerWidth - 60, svgH = 300;
+    var yMargin = 5;
+
     var svg = d3.select('#vis')
         .append('svg')
         .attr('width', svgW)
@@ -63,7 +65,7 @@ app.controller('MainController', function ($scope) {
 
     var dataLen = 1;
 
-    var line = d3.line()
+    var plotLineFn = d3.line()
         .x(function (d, i) {
             return i / (dataLen-1) * svgW;
         })
@@ -72,9 +74,24 @@ app.controller('MainController', function ($scope) {
         })
         .curve(d3.curveStep);
 
+    var playheadFn = d3.line()
+        .x(function (d, i) {
+            return d * svgW;
+        })
+        .y(function (d, i) {
+            return svgH * i;
+        })
+        .curve(d3.curveStep);
+
     svg.append('path')
-        .attr('class', 'line')
+        .attr('class', 'plotline')
         .attr('stroke', 'white')
+        .attr('stroke-width', '2')
+        .attr('fill', 'none');
+
+    svg.append('path')
+        .attr('class', 'playhead')
+        .attr('stroke', 'lightgreen')
         .attr('stroke-width', '2')
         .attr('fill', 'none');
 
@@ -167,12 +184,13 @@ app.controller('MainController', function ($scope) {
 
         editor.refresh();
 
-        if (Cookies.get('temp') !== undefined) {
-            temp = dtm.data(Cookies.get('temp').split(',')).tonumber();
-        }
-        if (Cookies.get('humid') !== undefined) {
-            humid = dtm.data(Cookies.get('humid').split(',')).tonumber();
-        }
+        dtm.csv('data/gasprice.csv', function (D) {
+            gasprice = D;
+        });
+
+        dtm.csv('data/icad2018.csv', function (D) {
+            userdata = D;
+        });
     };
 
     function setup(cb) {
@@ -222,13 +240,6 @@ app.controller('MainController', function ($scope) {
 
         setBackgroundImage();
         flashBackground();
-
-        if (temp.val) {
-            Cookies.set('temp', temp.val.toString());
-        }
-        if (humid.val) {
-            Cookies.set('humid', humid.val.toString());
-        }
     };
 
     $scope.evalSelected = function evalSelected() {
@@ -358,7 +369,6 @@ app.controller('MainController', function ($scope) {
 
         if (dtm.util.isNumOrFloat32Array(arr)) {
             var data;
-            var yMargin = 5;
 
             if (arguments.length === 2) {
                 if (dtm.util.isDtmArray(arguments[1])) {
@@ -381,10 +391,10 @@ app.controller('MainController', function ($scope) {
             }
             dataLen = data.length;
 
-            svg.selectAll('path')
+            svg.selectAll('path.plotline')
                 .attr('stroke-opacity', '1')
                 // .transition().duration(200)
-                .attr('d', line(data));
+                .attr('d', plotLineFn(data));
             // .style('filter', 'url(#blur)')
 
             if (plotDiv !== null) {
@@ -411,9 +421,15 @@ app.controller('MainController', function ($scope) {
         return a;
     }
 
+    playhead = function (phaseDatum) {
+        var p = phaseDatum.get(0);
+        svg.selectAll('path.playhead')
+            .attr('stroke-opacity', '1')
+            .attr('d', playheadFn([p,p]));
+        return phaseDatum;
+    };
 
     dtm.setPlotter(plot);
-
     dtm.setPrinter(cslPrint);
     var print = cslPrint;
 
@@ -694,4 +710,18 @@ app.controller('MainController', function ($scope) {
         Cookies.set('url', url);
         setBackgroundImage();
     });
+
+    // for Chrome 66+ web-audio restriction
+    // see: https://bugs.chromium.org/p/chromium/issues/detail?id=807017
+    function resumeAudioContext() {
+        $document.off('click', resumeAudioContext); // unbind from this event listener
+
+        if (dtm.wa.ctx && dtm.wa.ctx.status !== 'running') {
+            console.log('resuming web audio context');
+            dtm.wa.ctx.resume();
+        }
+        dtm.startWebAudio();
+    }
+
+    $document.on('click', resumeAudioContext);
 });

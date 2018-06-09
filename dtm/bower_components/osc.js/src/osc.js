@@ -1,21 +1,17 @@
 /*
  * osc.js: An Open Sound Control library for JavaScript that works in both the browser and Node.js
  *
- * Copyright 2014, Colin Clark
+ * Copyright 2014-2016, Colin Clark
  * Licensed under the MIT and GPL 3 licenses.
  */
 
-/* global require, module, Buffer */
+/* global require, module, process, Buffer, Long */
 
 var osc = osc || {};
 
 (function () {
 
     "use strict";
-
-    // Private instance of the buffer-dataview object.
-    // Only used if we're in Node.js.
-    var BufferDataView;
 
     osc.SECS_70YRS = 2208988800;
     osc.TWO_32 = 4294967296;
@@ -25,26 +21,37 @@ var osc = osc || {};
         unpackSingleArgs: true
     };
 
-    // A flag to tell us if we're in a Node.js-compatible environment with Buffers,
-    // which we will assume are faster.
     // Unsupported, non-API property.
-    osc.isBufferEnv = typeof Buffer !== "undefined";
+    osc.isCommonJS = typeof module !== "undefined" && module.exports ? true : false;
+
+    // Unsupported, non-API property.
+    osc.isNode = osc.isCommonJS && typeof window === "undefined";
+
+    // Unsupported, non-API property.
+    osc.isElectron = typeof process !== "undefined" &&
+        process.versions && process.versions.electron ? true : false;
+
+    // Unsupported, non-API property.
+    osc.isBufferEnv = osc.isNode || osc.isElectron;
 
     // Unsupported, non-API function.
     osc.isArray = function (obj) {
         return obj && Object.prototype.toString.call(obj) === "[object Array]";
     };
 
-    // Unsupported, non-API function
+    // Unsupported, non-API function.
     osc.isTypedArrayView = function (obj) {
         return obj.buffer && obj.buffer instanceof ArrayBuffer;
     };
 
-    // Unsupported, non-API function
+    // Unsupported, non-API function.
     osc.isBuffer = function (obj) {
         return osc.isBufferEnv && obj instanceof Buffer;
     };
 
+    // Unsupported, non-API member.
+    osc.Long = typeof Long !== "undefined" ? Long :
+        osc.isNode ? require("long") : undefined;
 
     /**
      * Wraps the specified object in a DataView.
@@ -53,34 +60,20 @@ var osc = osc || {};
      * @return {DataView} the DataView object
      */
     // Unsupported, non-API function.
-    osc.dataView = function (obj) {
-        if (obj instanceof DataView) {
-            return obj;
-        }
-
-        // Node.js-specific.
-        if (typeof BufferDataView !== "undefined" && obj instanceof BufferDataView) {
-            return obj;
-        }
-
-        // Node.js-specific.
-        if (osc.isBufferEnv && obj instanceof Buffer) {
-            return new BufferDataView(obj);
-        }
-
+    osc.dataView = function (obj, offset, length) {
         if (obj.buffer) {
-            return new DataView(obj.buffer);
+            return new DataView(obj.buffer, offset, length);
         }
 
         if (obj instanceof ArrayBuffer) {
-            return new DataView(obj);
+            return new DataView(obj, offset, length);
         }
 
-        return new DataView(new Uint8Array(obj));
+        return new DataView(new Uint8Array(obj), offset, length);
     };
 
     /**
-     * Takes an ArrayBuffer, TypedArray, DataView, Node.js Buffer, or array-like object
+     * Takes an ArrayBuffer, TypedArray, DataView, Buffer, or array-like object
      * and returns a Uint8Array view of it.
      *
      * Throws an error if the object isn't suitably array-like.
@@ -96,24 +89,42 @@ var osc = osc || {};
 
         var buf = obj.buffer ? obj.buffer : obj;
 
-        if (typeof obj.length === "undefined" || typeof obj === "string") {
-            throw new Error("Can't wrap a non-array-like object as Uint8Array. Object was: " + obj);
+        if (!(buf instanceof ArrayBuffer) && (typeof buf.length === "undefined" || typeof buf === "string")) {
+            throw new Error("Can't wrap a non-array-like object as Uint8Array. Object was: " +
+                JSON.stringify(obj, null, 2));
         }
 
+
+        // TODO gh-39: This is a potentially unsafe algorithm;
+        // if we're getting anything other than a TypedArrayView (such as a DataView),
+        // we really need to determine the range of the view it is viewing.
         return new Uint8Array(buf);
     };
 
+    /**
+     * Takes an ArrayBuffer, TypedArray, DataView, or array-like object
+     * and returns a native buffer object
+     * (i.e. in Node.js, a Buffer object and in the browser, a Uint8Array).
+     *
+     * Throws an error if the object isn't suitably array-like.
+     *
+     * @param {Array-like or Array-wrapping} obj an array-like or array-wrapping object
+     * @returns {Buffer|Uint8Array} a buffer object
+     */
     // Unsupported, non-API function.
-    osc.makeByteArray = function (len) {
-        return osc.isBufferEnv ? new Buffer(len) : new Uint8Array(len);
+    osc.nativeBuffer = function (obj) {
+        if (osc.isBufferEnv) {
+            return osc.isBuffer(obj) ? obj :
+                new Buffer(obj.buffer ? obj : new Uint8Array(obj));
+        }
+
+        return osc.isTypedArrayView(obj) ? obj : new Uint8Array(obj);
     };
 
     // Unsupported, non-API function
     osc.copyByteArray = function (source, target, offset) {
         if (osc.isTypedArrayView(source) && osc.isTypedArrayView(target)) {
             target.set(source, offset);
-        } else if (osc.isBuffer(source) && osc.isBuffer(target)) {
-            source.copy(target, offset);
         } else {
             var start = offset === undefined ? 0 : offset,
                 len = Math.min(target.length - offset, source.length);
@@ -219,6 +230,42 @@ var osc = osc || {};
      */
     osc.writeInt32 = function (val, dv, offset) {
         return osc.writePrimitive(val, dv, "setInt32", 4, offset);
+    };
+
+    /**
+     * Reads an OSC int64 ("h") value.
+     *
+     * @param {DataView} dv a DataView containing the raw bytes
+     * @param {Object} offsetState an offsetState object used to store the current offset index into dv
+     * @return {Number} the number that was read
+     */
+    osc.readInt64 = function (dv, offsetState) {
+        var high = osc.readPrimitive(dv, "getInt32", 4, offsetState),
+            low = osc.readPrimitive(dv, "getInt32", 4, offsetState);
+
+        if (osc.Long) {
+            return new osc.Long(low, high);
+        } else {
+            return {
+                high: high,
+                low: low,
+                unsigned: false
+            };
+        }
+    };
+
+    /**
+     * Writes an OSC int64 ("h") value.
+     *
+     * @param {Number} val the number to write
+     * @param {DataView} [dv] a DataView instance to write the number into
+     * @param {Number} [offset] an offset into dv
+     */
+    osc.writeInt64 = function (val, dv, offset) {
+        var arr = new Uint8Array(8);
+        arr.set(osc.writePrimitive(val.high, dv, "setInt32", 4, offset), 0);
+        arr.set(osc.writePrimitive(val.low,  dv, "setInt32", 4, offset + 4), 4);
+        return arr;
     };
 
     /**
@@ -473,12 +520,14 @@ var osc = osc || {};
      * relative to now by the specified number of seconds.
      *
      * @param {Number} secs the number of seconds relative to now (i.e. + for the future, - for the past)
+     * @param {Number} now the number of milliseconds since epoch to use as the current time. Defaults to Date.now()
      * @return {Object} the time tag
      */
-    osc.timeTag = function (secs) {
+    osc.timeTag = function (secs, now) {
         secs = secs || 0;
+        now = now || Date.now();
 
-        var nowSecs = Date.now() / 1000,
+        var nowSecs = now / 1000,
             nowWhole = Math.floor(nowSecs),
             nowFracs = nowSecs - nowWhole,
             secsWhole = Math.floor(secs),
@@ -532,7 +581,7 @@ var osc = osc || {};
      *
      * @param {DataView} dv a DataView instance to read from
      * @param {Object} offsetState the offsetState object that stores the current offset into dv
-     * @param {Oobject} [options] read options
+     * @param {Object} [options] read options
      * @return {Array} an array of the OSC arguments that were read
      */
     osc.readArguments = function (dv, options, offsetState) {
@@ -588,7 +637,7 @@ var osc = osc || {};
                     endArrayIdx = fromArrayOpen.indexOf("]");
 
                 if (endArrayIdx < 0) {
-                    throw new Error("Invalid argument type tag: an open array type tag ('[') was found "+
+                    throw new Error("Invalid argument type tag: an open array type tag ('[') was found " +
                         "without a matching close array tag ('[]'). Type tag was: " + typeTagString);
                 }
 
@@ -620,7 +669,7 @@ var osc = osc || {};
 
     // Unsupported, non-API function.
     osc.joinParts = function (dataCollection) {
-        var buf = osc.makeByteArray(dataCollection.byteLength),
+        var buf = new Uint8Array(dataCollection.byteLength),
             parts = dataCollection.parts,
             offset = 0;
 
@@ -639,10 +688,39 @@ var osc = osc || {};
         dataCollection.byteLength += dataPart.length;
     };
 
+    osc.writeArrayArguments = function (args, dataCollection) {
+        var typeTag = "[";
+
+        for (var i = 0; i < args.length; i++) {
+            var arg = args[i];
+            typeTag += osc.writeArgument(arg, dataCollection);
+        }
+
+        typeTag += "]";
+
+        return typeTag;
+    };
+
+    osc.writeArgument = function (arg, dataCollection) {
+        if (osc.isArray(arg)) {
+            return osc.writeArrayArguments(arg, dataCollection);
+        }
+
+        var type = arg.type,
+            writer = osc.argumentTypes[type].writer;
+
+        if (writer) {
+            var data = osc[writer](arg.value);
+            osc.addDataPart(data, dataCollection);
+        }
+
+        return arg.type;
+    };
+
     // Unsupported, non-API function.
     osc.collectArguments = function (args, options, dataCollection) {
         if (!osc.isArray(args)) {
-            args = [args];
+            args = typeof args === "undefined" ? [] : [args];
         }
 
         dataCollection = dataCollection || {
@@ -658,15 +736,8 @@ var osc = osc || {};
             currPartIdx = dataCollection.parts.length;
 
         for (var i = 0; i < args.length; i++) {
-            var arg = args[i],
-                type = arg.type,
-                writer = osc.argumentTypes[type].writer;
-
-            typeTagString += arg.type;
-            if (writer) {
-                var data = osc[writer](arg.value);
-                osc.addDataPart(data, dataCollection);
-            }
+            var arg = args[i];
+            typeTagString += osc.writeArgument(arg, dataCollection);
         }
 
         var typeData = osc.writeString(typeTagString);
@@ -680,14 +751,14 @@ var osc = osc || {};
      * Reads an OSC message.
      *
      * @param {Array-like} data an array of bytes to read from
-     * @param {Object} [options] read optoins
+     * @param {Object} [options] read options
      * @param {Object} [offsetState] an offsetState object that stores the current offset into dv
      * @return {Object} the OSC message, formatted as a JavaScript object containing "address" and "args" properties
      */
     osc.readMessage = function (data, options, offsetState) {
         options = options || osc.defaults;
 
-        var dv = osc.dataView(data);
+        var dv = osc.dataView(data, data.byteOffset, data.byteLength);
         offsetState = offsetState || {
             idx: 0
         };
@@ -731,8 +802,18 @@ var osc = osc || {};
      */
     osc.writeMessage = function (msg, options) {
         options = options || osc.defaults;
+
+        if (!osc.isValidMessage(msg)) {
+            throw new Error("An OSC message must contain a valid address. Message was: " +
+                JSON.stringify(msg, null, 2));
+        }
+
         var msgCollection = osc.collectMessageParts(msg, options);
         return osc.joinParts(msgCollection);
+    };
+
+    osc.isValidMessage = function (msg) {
+        return msg.address && msg.address.indexOf("/") === 0;
     };
 
     /**
@@ -778,14 +859,19 @@ var osc = osc || {};
      * @return {Uint8Array} an array of bytes containing the message
      */
     osc.writeBundle = function (bundle, options) {
-        if (!bundle.timeTag || !bundle.packets) {
-            return;
+        if (!osc.isValidBundle(bundle)) {
+            throw new Error("An OSC bundle must contain 'timeTag' and 'packets' properties. " +
+                "Bundle was: " + JSON.stringify(bundle, null, 2));
         }
 
         options = options || osc.defaults;
         var bundleCollection = osc.collectBundlePackets(bundle, options);
 
         return osc.joinParts(bundleCollection);
+    };
+
+    osc.isValidBundle = function (bundle) {
+        return bundle.timeTag !== undefined && bundle.packets !== undefined;
     };
 
     // Unsupported, non-API function.
@@ -815,7 +901,7 @@ var osc = osc || {};
      * @return {Object} a bundle or message object
      */
     osc.readPacket = function (data, options, offsetState, len) {
-        var dv = osc.dataView(data);
+        var dv = osc.dataView(data, data.byteOffset, data.byteLength);
 
         len = len === undefined ? dv.byteLength : len;
         offsetState = offsetState || {
@@ -843,8 +929,14 @@ var osc = osc || {};
      * @return {Uint8Array} an array of bytes containing the message
      */
     osc.writePacket = function (packet, options) {
-        var writer = packet.address ? osc.writeMessage : osc.writeBundle;
-        return writer(packet, options);
+        if (osc.isValidMessage(packet)) {
+            return osc.writeMessage(packet, options);
+        } else if (osc.isValidBundle(packet)) {
+            return osc.writeBundle(packet, options);
+        } else {
+            throw new Error("The specified packet was not recognized as a valid OSC message or bundle." +
+                " Packet was: " + JSON.stringify(packet, null, 2));
+        }
     };
 
     // Unsupported, non-API.
@@ -852,6 +944,10 @@ var osc = osc || {};
         i: {
             reader: "readInt32",
             writer: "writeInt32"
+        },
+        h: {
+            reader: "readInt64",
+            writer: "writeInt64"
         },
         f: {
             reader: "readFloat32",
@@ -922,46 +1018,48 @@ var osc = osc || {};
                 if (arg === null) {
                     return "N";
                 } else if (arg instanceof Uint8Array ||
-                    arg instanceof ArrayBuffer ||
-                    (osc.isBufferEnv && arg instanceof Buffer)) {
+                    arg instanceof ArrayBuffer) {
                     return "b";
+                } else if (typeof arg.high === "number" && typeof arg.low === "number") {
+                    return "h";
                 }
                 break;
         }
 
-        throw new Error("Can't infer OSC argument type for value: " + arg);
+        throw new Error("Can't infer OSC argument type for value: " +
+            JSON.stringify(arg, null, 2));
     };
 
     // Unsupported, non-API function.
     osc.annotateArguments = function (args) {
-        if (!osc.isArray(args)) {
-            args = [args];
-        }
-
         var annotated = [];
+
         for (var i = 0; i < args.length; i++) {
             var arg = args[i],
-                oscType = osc.inferTypeForArgument(arg);
+                msgArg;
 
-            annotated.push({
-                type: oscType,
-                value: arg
-            });
+            if (typeof (arg) === "object" && arg.type && arg.value !== undefined) {
+                // We've got an explicitly typed argument.
+                msgArg = arg;
+            } else if (osc.isArray(arg)) {
+                // We've got an array of arguments,
+                // so they each need to be inferred and expanded.
+                msgArg = osc.annotateArguments(arg);
+            } else {
+                var oscType = osc.inferTypeForArgument(arg);
+                msgArg = {
+                    type: oscType,
+                    value: arg
+                };
+            }
+
+            annotated.push(msgArg);
         }
 
         return annotated;
     };
 
-
-    // If we're in a require-compatible environment, export ourselves.
-    if (typeof module !== "undefined" && module.exports) {
-
-        // Check if we're in Node.js; if so, require the buffer-dataview library.
-        if (osc.isBufferEnv) {
-            BufferDataView = require("buffer-dataview");
-        }
-
+    if (osc.isCommonJS) {
         module.exports = osc;
     }
-
 }());

@@ -318,9 +318,22 @@ var dtm = {
     },
 
     startWebAudio: function () {
+        if (dtm.wa.actx && dtm.wa.actx.state === 'suspended') {
+            dtm.wa.actx.resume();
+        }
+
         dtm.wa.isOn = true;
 
-        dtm.wa.actx = new (window.AudioContext || window.webkitAudioContext)();
+        dtm.wa.actx = new (window.AudioContext || window.webkitAudioContext)({
+            latencyHint: 'playback'
+        });
+        //
+        // dtm.wa.actx.onstatechange = function () {
+        //     if (dtm.wa.actx.state === "suspended") {
+        //         dtm.wa.actx.resume();
+        //     }
+        // };
+
         dtm.wa.now = function () {
             return dtm.wa.actx.currentTime;
         };
@@ -329,6 +342,12 @@ var dtm = {
         };
         dtm.wa.clMult = 0.01;
         dtm.wa.clockBuf = dtm.wa.actx.createBuffer(1, Math.round(dtm.wa.actx.sampleRate * dtm.wa.clMult), dtm.wa.actx.sampleRate);
+
+        // Music.prototype.actx = dtm.wa.actx = new (window.AudioContext || window.webkitAudioContext)({
+        //     latencyHint: 'playback'
+        // });
+
+        // Music.prototype.dummyBuffer = Music.prototype.actx.createBuffer(1, 1, 44100);
     },
 
     startWebMidi: function () {
@@ -1840,7 +1859,7 @@ dtm.osc = {
             if (addr[0] !== '/') {
                 addr = '/'.concat(addr);
             }
-            if (msg.address == addr) {
+            if (msg.address === addr) {
                 cb(msg.args);
             }
         });
@@ -1849,10 +1868,12 @@ dtm.osc = {
 
     send: function (addr, args) {
         if (addr[0] !== '/') {
-            addr.unshift('/');
+            addr = '/'.concat(addr);
         }
 
-        if (args.constructor !== Array) {
+        if (isDtmData(args)) {
+            args = fromFloat32Array(args().get());
+        } else if (args.constructor !== Array) {
             args = [args];
         }
 
@@ -4786,20 +4807,30 @@ dtm.data.augment({
     },
 
     // TODO: not consistent with "name()"
-    names: function () {
-        if (isNestedDtmArray(this)) {
-            var val = this.get('keys');
-            this.params.depth--;
-            if (this.params.depth === 1) {
-                this.params.nested = false;
+    names: function (names) {
+        if (isDtmData(names)) {
+            if (isNestedDtmArray(this)) {
+                return this.each(function (col, i) {
+                    col.params.name = names.get(i);
+                });
+            } else {
+                return this;
             }
-
-            if (arguments.length > 0) {
-                val = dtm.data(val).column(argsToArray(arguments)).ub();
-            }
-            return this.set(val);
         } else {
-            return this;
+            if (isNestedDtmArray(this)) {
+                var val = this.get('keys');
+                this.params.depth--;
+                if (this.params.depth === 1) {
+                    this.params.nested = false;
+                }
+
+                if (arguments.length > 0) {
+                    val = dtm.data(val).column(argsToArray(arguments)).ub();
+                }
+                return this.set(val);
+            } else {
+                return this;
+            }
         }
     },
 
@@ -5882,7 +5913,8 @@ dtm.data.augment({
 dtm.data.augment({
     aliases: {
         add: ['plus'],
-        subtract: ['minus'],
+        subtract: ['minus', 'sub'],
+        subfrom: ['subof'],
         multiply: ['mult'],
         divide: ['div'],
         reciprocal: ['recip'],
@@ -5950,9 +5982,9 @@ dtm.data.augment({
         if (isNestedNumDtmArray(that)) {
             return that.map(function (a) {
                 if (isNestedNumDtmArray(factor)) {
-                    return a.add(factor.get('next'));
+                    return a.subtract(factor.get('next'));
                 } else {
-                    return a.add(factor);
+                    return a.subtract(factor);
                 }
             });
         } else {
@@ -5965,11 +5997,35 @@ dtm.data.augment({
                 });
                 that.set(newArr);
                 return that.map(function (a) {
-                    return a.add(factor.get('next'));
+                    return a.subtract(factor.get('next'));
                 });
             }
 
             return that.set(dtm.transform.subtract(that.val, factor, interp));
+        }
+    },
+
+    subfrom: function (factor, interp) {
+        var that = this;
+        if (!isString(interp)) {
+            interp = 'step';
+        }
+        if (isNestedNumDtmArray(that)) {
+            return that.map(function (a) {
+                if (isNestedNumDtmArray(factor)) {
+                    return a.subfrom(factor.get('next'));
+                } else {
+                    return a.subfrom(factor);
+                }
+            });
+        } else {
+            if (isNumDtmArray(factor)) {
+                factor = factor.get();
+            } else if (isNumber(factor)) {
+                factor = [factor];
+            }
+
+            return that.set(dtm.transform.subtract(factor, that.val, interp));
         }
     },
 
@@ -5988,9 +6044,9 @@ dtm.data.augment({
         if (isNestedNumDtmArray(that)) {
             return that.map(function (a) {
                 if (isNestedNumDtmArray(factor)) {
-                    return a.mult(factor.get('next'));
+                    return a.multiply(factor.get('next'));
                 } else {
-                    return a.mult(factor);
+                    return a.multiply(factor);
                 }
             });
         } else {
@@ -7946,6 +8002,14 @@ dtm.data.augment({
             dtm.params.plotter.apply(this, [this].concat(argsToArray(arguments)));
         }
         return this;
+    },
+
+    send: function (channel) {
+        if (!isString(channel)) {
+            channel = 'dtm';
+        }
+        dtm.osc.send(channel, this);
+        return this;
     }
 });
 
@@ -8689,7 +8753,7 @@ dtm.generator = function () {
         }
 
         if (arguments.length >= 2 && isInteger(arguments[1])) {
-            generator.length = arguments[1] > 0 ? arguments[1] : 1;
+            generator.length = arguments[1] >= 0 ? arguments[1] : 1;
         }
 
         if (arguments.length === 3) {
@@ -10949,7 +11013,9 @@ function Music() {
 
 Music.prototype = Object.create(Function.prototype);
 
-Music.prototype.actx = dtm.wa.actx || new (window.AudioContext || window.webkitAudioContext)();
+Music.prototype.actx = dtm.wa.actx || new (window.AudioContext || window.webkitAudioContext)({
+    latencyHint: 'playback'
+});
 
 Music.prototype.octx = null;
 Music.prototype.offline = false;
@@ -11426,7 +11492,7 @@ Music.prototype.play = Music.prototype.p = function (time) {
                             if (that.params.monitor.process) {
                                 var outputBuffer = event.outputBuffer.getChannelData(0);
                                 if (processed !== outputBuffer.length) {
-                                    processed.fit(outputBuffer.length);
+                                    processed.step(outputBuffer.length);
                                 }
                                 for (var i = 0, l = outputBuffer.length; i < l; i++) {
                                     outputBuffer[i] = processed.get(i);

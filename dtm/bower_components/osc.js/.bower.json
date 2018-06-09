@@ -1,7 +1,7 @@
 {
   "name": "osc.js",
-  "version": "1.1.0",
-  "main": "dist/osc.min.js",
+  "version": "2.2.2",
+  "main": "dist/osc-browser.js",
   "ignore": [
     ".jshintrc",
     "package.json",
@@ -11,21 +11,22 @@
     "tests"
   ],
   "dependencies": {
-    "slip.js": ">=1.0.1",
-    "eventEmitter": ">=4.2.7"
+    "slip.js": "1.0.2",
+    "eventEmitter": "5.2.4",
+    "long": "4.0.0"
   },
   "devDependencies": {
-    "qunit": "1.14.0"
+    "requirejs": "2.1.20"
   },
   "homepage": "https://github.com/colinbdclark/osc.js",
-  "_release": "1.1.0",
+  "_release": "2.2.2",
   "_resolution": {
     "type": "version",
-    "tag": "1.1.0",
-    "commit": "71e8751fde37dd7c74cf8c210669163759bfc739"
+    "tag": "2.2.2",
+    "commit": "987c0333b09bbddb931792e20602803934efcf7d"
   },
-  "_source": "git://github.com/colinbdclark/osc.js.git",
-  "_target": "~1.1.0",
+  "_source": "https://github.com/colinbdclark/osc.js.git",
+  "_target": "^2.2.2",
   "_originalSource": "osc.js",
   "_direct": true
 }

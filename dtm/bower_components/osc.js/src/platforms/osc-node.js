@@ -1,7 +1,9 @@
 /*
  * osc.js: An Open Sound Control library for JavaScript that works in both the browser and Node.js
  *
- * Copyright 2014, Colin Clark
+ * Node.js transports for osc.js
+ *
+ * Copyright 2014-2016, Colin Clark
  * Licensed under the MIT and GPL 3 licenses.
  */
 
@@ -41,12 +43,15 @@
     };
 
     var dgram = require("dgram"),
-        serialport = require("serialport"),
+        SerialPort = require("serialport"),
         net = require("net"),
         WebSocket = require("ws"),
-        modules = requireModules(["../osc.js", "../osc-transports.js"]),
+        modules = requireModules([
+            "../osc.js",
+            "../osc-transports.js",
+            "./osc-websocket-client.js"
+        ]),
         osc = shallowMerge({}, modules);
-
 
     /**********
      * Serial *
@@ -56,6 +61,11 @@
         this.on("open", this.listen.bind(this));
         osc.SLIPPort.call(this, options);
         this.options.bitrate = this.options.bitrate || 9600;
+
+        this.serialPort = options.serialPort;
+        if (this.serialPort) {
+            this.emit("open", this.serialPort);
+        }
     };
 
     var p = osc.SerialPort.prototype = Object.create(osc.SLIPPort.prototype);
@@ -71,48 +81,44 @@
 
         var that = this;
 
-        this.serialPort = new serialport.SerialPort(this.options.devicePath, {
-            baudrate: this.options.bitrate
-        }, false);
-
-        this.serialPort.open(function() {
-            that.emit("open", that.serialPort);
-        });
-    };
-
-    p.listen = function () {
-        var that = this;
-
-        this.serialPort.on("data", function (data) {
-            that.emit("data", data);
+        this.serialPort = new SerialPort(this.options.devicePath, {
+            baudRate: this.options.bitrate,
+            autoOpen: false
         });
 
         this.serialPort.on("error", function (err) {
             that.emit("error", err);
         });
 
-        this.serialPort.on("close", function (err) {
-            if (err) {
-                that.emit("error", err);
-            } else {
-                that.emit("close");
-            }
+        this.serialPort.on("open", function () {
+            that.emit("open", that.serialPort);
+        });
+
+        this.serialPort.open();
+    };
+
+    p.listen = function () {
+        var that = this;
+
+        this.serialPort.on("data", function (data) {
+            that.emit("data", data, undefined);
+        });
+
+        this.serialPort.on("close", function () {
+            that.emit("close");
         });
 
         that.emit("ready");
     };
 
     p.sendRaw = function (encoded) {
-        if (!this.serialPort) {
+        if (!this.serialPort || !this.serialPort.isOpen()) {
+            osc.fireClosedPortSendError(this);
             return;
         }
 
         var that = this;
-        this.serialPort.write(encoded, function (err) {
-            if (err) {
-                that.emit("error", err);
-            }
-        });
+        this.serialPort.write(encoded);
     };
 
     p.close = function () {
@@ -133,7 +139,16 @@
         this.options.localPort = this.options.localPort !== undefined ?
             this.options.localPort : 57121;
 
+        this.options.remoteAddress = this.options.remoteAddress || "127.0.0.1";
+        this.options.remotePort = this.options.remotePort !== undefined ?
+            this.options.remotePort : 57121;
+
         this.on("open", this.listen.bind(this));
+
+        this.socket = options.socket;
+        if (this.socket) {
+            this.emit("open", this.socket);
+        }
     };
 
     p = osc.UDPPort.prototype = Object.create(osc.Port.prototype);
@@ -141,19 +156,28 @@
 
     p.open = function () {
         var that = this;
+
+        if (this.socket) {
+            return;
+        }
+
         this.socket = dgram.createSocket("udp4");
 
+        this.socket.on("error", function (error) {
+            that.emit("error", error);
+        });
+
         function onBound() {
+            osc.UDPPort.setupMulticast(that);
+
+            if (that.options.broadcast) {
+                that.socket.setBroadcast(that.options.broadcast);
+            }
+
             that.emit("open", that.socket);
         }
 
-        if (this.options.multicast) {
-            this.socket.setBroadcast(this.options.multicast);
-            this.socket.setMulticastTTL(this.options.multicastTTL);
-            this.socket.bind(this.options.localPort, onBound);
-        } else {
-            this.socket.bind(this.options.localPort, this.options.localAddress, onBound);
-        }
+        this.socket.bind(this.options.localPort, this.options.localAddress, onBound);
     };
 
     p.listen = function () {
@@ -166,8 +190,8 @@
             that.emit("data", msg, rinfo);
         });
 
-        this.socket.on("error", function (error) {
-            that.emit("error", error);
+        this.socket.on("close", function () {
+            that.emit("close");
         });
 
         that.emit("ready");
@@ -175,6 +199,7 @@
 
     p.sendRaw = function (encoded, address, port) {
         if (!this.socket) {
+            osc.fireClosedPortSendError(this);
             return;
         }
 
@@ -197,74 +222,24 @@
         }
     };
 
+    osc.UDPPort.setupMulticast = function (that) {
+        if (that.options.multicastTTL !== undefined) {
+            that.socket.setMulticastTTL(that.options.multicastTTL);
+        }
 
-    /**************
-     * Web Sockets *
-     **************/
-
-    osc.WebSocketPort = function (options) {
-        osc.Port.call(this, options);
-        this.socket = options.socket;
-        this.on("open", this.listen.bind(this));
-
-        if (this.socket) {
-            if (this.socket.readyState === 1) {
-                this.emit("open", this.socket);
-            } else {
-                this.open();
+        if (that.options.multicastMembership) {
+            if (typeof that.options.multicastMembership === "string") {
+                that.options.multicastMembership = [that.options.multicastMembership];
             }
+
+            that.options.multicastMembership.forEach(function (addr) {
+                if (typeof addr === "string") {
+                  that.socket.addMembership(addr);
+                } else {
+                  that.socket.addMembership(addr.address, addr.interface);
+                }
+            });
         }
-    };
-
-    p = osc.WebSocketPort.prototype = Object.create(osc.Port.prototype);
-    p.constructor = osc.WebSocketPort;
-
-    p.open = function () {
-        if (!this.socket) {
-            this.socket = new WebSocket(this.options.url);
-        }
-
-        var that = this;
-        this.socket.on("open", function () {
-            that.emit("open", that.socket);
-        });
-    };
-
-    p.listen = function () {
-        var that = this;
-        this.socket.on("message", function (data) {
-            that.emit("data", data);
-        });
-
-        this.socket.on("error", function (err) {
-            that.emit("error", err);
-        });
-
-        this.socket.on("close", function (e) {
-            that.emit("close", e);
-        });
-
-        that.emit("ready");
-    };
-
-    p.sendRaw = function (encoded) {
-        if (!this.socket) {
-            return;
-        }
-
-        var that = this;
-
-        this.socket.send(encoded, {
-            binary: true
-        }, function (err) {
-            if (err) {
-                that.emit("error", err);
-            }
-        });
-    };
-
-    p.close = function (code, reason) {
-        this.socket.close(code, reason);
     };
 
 
@@ -310,19 +285,15 @@
     p.listen = function () {
         var that = this;
         this.socket.on("data", function (msg) {
-            that.emit("data", msg);
+            that.emit("data", msg, undefined);
         });
 
         this.socket.on("error", function (err) {
             that.emit("error", err);
         });
 
-        this.socket.on("close", function (err) {
-            if (err) {
-                that.emit("error", err);
-            } else {
-                that.emit("close");
-            }
+        this.socket.on("close", function (hadError) {
+            that.emit("close", hadError);
         });
 
         this.socket.on("connect", function () {

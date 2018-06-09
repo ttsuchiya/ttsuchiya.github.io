@@ -1,7 +1,9 @@
 /*
  * osc.js: An Open Sound Control library for JavaScript that works in both the browser and Node.js
  *
- * Copyright 2014, Colin Clark
+ * Chrome App transports for osc.js
+ *
+ * Copyright 2014-2016, Colin Clark
  * Licensed under the MIT and GPL 3 licenses.
  */
 
@@ -16,7 +18,7 @@ var osc = osc || {};
     osc.listenToTransport = function (that, transport, idName) {
         transport.onReceive.addListener(function (e) {
             if (e[idName] === that[idName]) {
-                that.emit("data", e.data);
+                that.emit("data", e.data, e);
             }
         });
 
@@ -36,6 +38,11 @@ var osc = osc || {};
     osc.SerialPort = function (options) {
         this.on("open", this.listen.bind(this));
         osc.SLIPPort.call(this, options);
+
+        this.connectionId = this.options.connectionId;
+        if (this.connectionId) {
+            this.emit("open", this.connectionId);
+        }
     };
 
     var p = osc.SerialPort.prototype = Object.create(osc.SLIPPort.prototype);
@@ -59,11 +66,14 @@ var osc = osc || {};
 
     p.sendRaw = function (encoded) {
         if (!this.connectionId) {
+            osc.fireClosedPortSendError(this);
             return;
         }
 
         var that = this;
 
+        // TODO gh-39: This is unsafe; we should only access the underlying
+        // buffer within the range of its view.
         chrome.serial.send(this.connectionId, encoded.buffer, function (bytesSent, err) {
             if (err) {
                 that.emit("error", err + ". Total bytes sent: " + bytesSent);
@@ -90,12 +100,21 @@ var osc = osc || {};
         o.localPort = o.localPort !== undefined ? o.localPort : 57121;
 
         this.on("open", this.listen.bind(this));
+
+        this.socketId = o.socketId;
+        if (this.socketId) {
+            this.emit("open", 0);
+        }
     };
 
     p = osc.UDPPort.prototype = Object.create(osc.Port.prototype);
     p.constructor = osc.UDPPort;
 
     p.open = function () {
+        if (this.socketId) {
+            return;
+        }
+
         var o = this.options,
             props = {
                 persistent: o.persistent,
@@ -114,6 +133,26 @@ var osc = osc || {};
         var that = this,
             o = this.options;
 
+        if (o.broadcast !== undefined) {
+            chrome.sockets.udp.setBroadcast(this.socketId, o.broadcast, function (resultCode) {
+                if (resultCode < 0) {
+                    that.emit("error",
+                        new Error("An error occurred while setting the socket's broadcast flag. Result code: " +
+                            resultCode));
+                }
+            });
+        }
+
+        if (o.multicastTTL !== undefined) {
+            chrome.sockets.udp.setMulticastTimeToLive(this.socketId, o.multicastTTL, function (resultCode) {
+                if (resultCode < 0) {
+                    that.emit("error",
+                        new Error("An error occurred while setting the socket's multicast time to live flag. " +
+                            "Result code: " + resultCode));
+                }
+            });
+        }
+
         chrome.sockets.udp.bind(this.socketId, o.localAddress, o.localPort, function (resultCode) {
             if (resultCode > 0) {
                 osc.emitNetworkError(that, resultCode);
@@ -125,11 +164,30 @@ var osc = osc || {};
     };
 
     p.listen = function () {
+        var o = this.options;
+
         osc.listenToTransport(this, chrome.sockets.udp, "socketId");
+
+        if (o.multicastMembership) {
+            if (typeof o.multicastMembership === "string") {
+              o.multicastMembership = [o.multicastMembership];
+            }
+
+            o.multicastMembership.forEach(function (addr) {
+                chrome.sockets.udp.joinGroup(this.socketId, addr, function (resultCode) {
+                    if (resultCode < 0) {
+                        this.emit("error", new Error(
+                            "There was an error while trying to join the multicast group " +
+                            addr + ". Result code: " + resultCode));
+                    }
+                });
+            });
+        }
     };
 
     p.sendRaw = function (encoded, address, port) {
         if (!this.socketId) {
+            osc.fireClosedPortSendError(this);
             return;
         }
 
@@ -139,6 +197,8 @@ var osc = osc || {};
         address = address || o.remoteAddress;
         port = port !== undefined ? port : o.remotePort;
 
+        // TODO gh-39: This is unsafe; we should only access the underlying
+        // buffer within the range of its view.
         chrome.sockets.udp.send(this.socketId, encoded.buffer, address, port, function (info) {
             if (!info) {
                 that.emit("error",
