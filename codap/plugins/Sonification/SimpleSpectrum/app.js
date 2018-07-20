@@ -198,7 +198,9 @@ let SimpleSpectrum = {
         self.size = coefs.length + 1;
 
         // TODO: bad assumption with the range
-        app.normalizedCoefs = dtm.data(coefs).range(0.1,1);
+        app.normalizedCoefs = dtm.data(coefs).filter(function (v) {
+            return !(Number.isNaN(v));
+        }).range(0.1,1);
 
         self.real = app.normalizedCoefs().prepend(0).get();
         self.imag = new Float32Array(self.size);
@@ -218,7 +220,9 @@ let SimpleSpectrum = {
         self.imag = new Float32Array(self.size);
 
         // TODO: bad assumption with the range
-        app.normalizedCoefs = dtm.data(coefs).range(0.1,1);
+        app.normalizedCoefs = dtm.data(coefs).filter(function (v) {
+            return !(Number.isNaN(v));
+        }).range(0.1,1);
 
         app.normalizedCoefs.eachv(function (v, i) {
             if (v > self.real[binIndices[i]]) {
@@ -336,7 +340,9 @@ let app = new Vue({
             } else {
                 let positionBy = dtm.data(app.allCases.map(function (c) {
                     return parseFloat(c.case.values[app.orderAttr]);
-                }));
+                })).filter(function (v) {
+                    return !(Number.isNaN(v));
+                });
 
                 // TODO: bad assumption
                 if (positionBy.get('min') > 0) {
