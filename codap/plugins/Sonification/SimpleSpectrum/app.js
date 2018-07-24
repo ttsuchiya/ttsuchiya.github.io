@@ -3,7 +3,7 @@
  */
 
 let SimpleSpectrum = {
-    pluginDim: [400, 200],
+    pluginDim: [350, 230],
     magMultiSlider: null,
     magSliderSize: [500, 250],
     magSliderEnabled: false,
@@ -34,7 +34,7 @@ let SimpleSpectrum = {
         self.real = new Float32Array(self.size);
         self.imag = new Float32Array(self.size);
 
-        self.real[self.size-1] = 1.0;
+        self.real[self.size-1] = 0.0;
 
         self.actx = new (window.AudioContext || window.webkitAudioContext)();
 
@@ -51,7 +51,7 @@ let SimpleSpectrum = {
 
         self.playButton = new Nexus.Toggle('#play-toggle', {
             size: [40, 20],
-            state: false
+            state: true
         });
 
         self.pitchSlider = new Nexus.Slider('#pitch-slider', {
@@ -94,6 +94,7 @@ let SimpleSpectrum = {
         });
 
         self.synth.frequency = self.pitchCurve.phase(.5).get(0);
+        self.play();
 
         codapInterface.init({
             name: 'Simple Spectrum',
@@ -108,19 +109,28 @@ let SimpleSpectrum = {
         });
 
         codapInterface.on('notify', '*', function (notice) {
+            console.log(notice);
             if (notice.resource === 'documentChangeNotice') {
                 self.queryDataContext();
             } else if (notice.resource.includes('dataContextChangeNotice')) {
-                codapInterface.sendRequest({
-                    action: 'get',
-                    resource: 'dataContext[' + app.dataCtx + '].selectionList'
-                }).then(function (result) {
-                    self.selected = result.values.map(function (c) {
-                        return c.caseID;
-                    });
+                if (notice.values.operation === 'selectCases') {
+                    codapInterface.sendRequest({
+                        action: 'get',
+                        resource: 'dataContext[' + app.dataCtx + '].selectionList'
+                    }).then(function (result) {
+                        self.selected = result.values.map(function (c) {
+                            return c.caseID;
+                        });
 
+                        self.filterBySelection();
+                    });
+                } else if (notice.values.operation === 'updateCases') {
+                    notice.values.result.cases.forEach(function (c) {
+                        app.allCases[app.caseIDs.indexOf(c.id)].case = c;
+                    });
+                    app.updateBinIndices();
                     self.filterBySelection();
-                });
+                }
             } else if (notice.resource === 'component') {
                 if (notice.values.operation === 'create' && notice.values.type === 'graph') {
                     app.graphID = notice.values.id;
@@ -230,7 +240,8 @@ let SimpleSpectrum = {
             }
         });
 
-        self.resetPeriodicWave(self.real);
+        // self.resetPeriodicWave(self.real);
+        self.filterBySelection();
 
         if (self.magSliderEnabled) {
             self.magMultiSlider.numberOfSliders = self.size;
@@ -241,23 +252,15 @@ let SimpleSpectrum = {
 
     filterBySelection: function () {
         let self = SimpleSpectrum;
-        let real = null;
+        let real = new Float32Array(self.size);
+        self.selected.forEach(function (caseID) {
+            let index = app.caseIDs.indexOf(caseID);
 
-        if (self.selected.length !== 0) {
-            let real = new Float32Array(self.size);
-            self.selected.forEach(function (caseID) {
-                let index = app.caseIDs.indexOf(caseID);
-
-                if (app.normalizedCoefs.get(index) > real[app.binIndices[index]]) {
-                    real[app.binIndices[index]] = app.normalizedCoefs.get(index);
-                }
-            });
-            self.resetPeriodicWave(real);
-
-        } else {
-            self.resetPeriodicWave(self.real);
-            real = self.real;
-        }
+            if (app.normalizedCoefs.get(index) > real[app.binIndices[index]]) {
+                real[app.binIndices[index]] = app.normalizedCoefs.get(index);
+            }
+        });
+        self.resetPeriodicWave(real);
 
         // TODO: return real-val array rather than calling resetPeriodicWave implicitly
 
@@ -309,7 +312,7 @@ let app = new Vue({
                     app.collection = app.collectionList[0];
                     app.onCollectionSelection();
                 }
-            })
+            });
         },
         onCollectionSelection: function () {
             codapInterface.sendRequest({
@@ -338,27 +341,30 @@ let app = new Vue({
                     app.onMagAttrSelection();
                 });
             } else {
-                let positionBy = dtm.data(app.allCases.map(function (c) {
-                    return parseFloat(c.case.values[app.orderAttr]);
-                })).filter(function (v) {
-                    return !(Number.isNaN(v));
-                });
-
-                // TODO: bad assumption
-                if (positionBy.get('min') > 0) {
-                    positionBy.range(0,.95,0,positionBy.get('max'));
-                } else {
-                    positionBy.range(0,.95);
-                }
-
-                // Increment all by 1 for DC
-                app.binIndices = dtm.range(SimpleSpectrum.sizeWhenOrdered)
-                    .phase(positionBy,'step').add(1).get();
-
-                SimpleSpectrum.setNewCoefsByPosition(app.allCases.map(function (c) {
-                    return parseFloat(c.case.values[app.magAttr]);
-                }), app.binIndices);
+                app.updateBinIndices();
             }
+        },
+        updateBinIndices: function () {
+            let positionBy = dtm.data(app.allCases.map(function (c) {
+                return parseFloat(c.case.values[app.orderAttr]);
+            })).filter(function (v) {
+                return !(Number.isNaN(v));
+            });
+
+            // TODO: bad assumption
+            if (positionBy.get('min') > 0) {
+                positionBy.range(0,.95,0,positionBy.get('max'));
+            } else {
+                positionBy.range(0,.95);
+            }
+
+            // Increment all by 1 for DC
+            app.binIndices = dtm.range(SimpleSpectrum.sizeWhenOrdered)
+                .phase(positionBy,'step').add(1).get();
+
+            SimpleSpectrum.setNewCoefsByPosition(app.allCases.map(function (c) {
+                return parseFloat(c.case.values[app.magAttr]);
+            }), app.binIndices);
         },
         onFollowGraphToggle: function () {
             if (app.followGraph) {
@@ -382,8 +388,10 @@ let app = new Vue({
                 app.caseIDs = app.allCases.map(function (c) {
                     return c.case.id;
                 });
-                app.binIndices = dtm.range(app.allCases.length)
-                    .add(1).get(); // increment all to skip DC
+                // app.binIndices = dtm.range(app.allCases.length)
+                //     .add(1).get(); // increment all to skip DC
+                app.binIndices = dtm.range(SimpleSpectrum.sizeWhenOrdered)
+                    .add(1).get();
             });
         }
     },

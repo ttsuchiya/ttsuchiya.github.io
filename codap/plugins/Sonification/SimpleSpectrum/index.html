@@ -37,6 +37,11 @@
                 <option disabled value="">Select context (file)</option>
                 <option v-for="dataCtx in dataCtxList">{{dataCtx}}</option>
             </select>
+        </span>
+    </div>
+    <div class="property-row">
+        <span>Table</span>
+        <span>
             <select v-model="collection" @change="onCollectionSelection">
                 <option disabled value="">Select collection (table)</option>
                 <option v-for="collection in collectionList">{{collection}}</option>
@@ -50,7 +55,7 @@
         </span>
     </div>
     <div class="property-row">
-        <span>Frequency Values</span>
+        <span>Node Loudness (Y-axis)</span>
         <span>
             <select v-model="magAttr" @change="onMagAttrSelection">
                 <option disabled value="">Select attribute</option>
@@ -59,7 +64,7 @@
         </span>
     </div>
     <div class="property-row">
-        <span>Position in Spectrum</span>
+        <span>Node Pitch (X-axis)</span>
         <span>
             <select v-model="orderAttr" @change="onOrderAttrSelection">
                 <option disabled value="">Select attribute</option>
