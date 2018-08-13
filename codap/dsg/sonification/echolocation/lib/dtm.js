@@ -11659,6 +11659,7 @@ Music.prototype.stop = Music.prototype.s = function (time) {
     that.params.repeat.current = 0;
     that.params.repeat.resetNext = true;
     that.params.repeat.nextTime = null;
+    that.params.iteration--;
 
     setTimeout(function () {
         if (!isNumber(time)) {

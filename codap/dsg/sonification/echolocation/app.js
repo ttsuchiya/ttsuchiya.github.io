@@ -130,13 +130,6 @@ const app = new Vue({
             radius: 0.1,
             alpha: 0.5
         },
-        countUp: {
-            timer: null,
-            active: false,
-            current: 0,
-            offset: 0,
-            text: null
-        },
         countDown: {
             duration: 60,
             remaining: null,
@@ -154,9 +147,19 @@ const app = new Vue({
         },
         game: {
             active: true,
-            level: 0
-        },
-        paused: false
+            paused: false,
+            level: 0,
+            timer: null,
+            time: {
+                sec: 0,
+                ms: 0,
+                offsets: {
+                    sec: 0,
+                    ms: 0
+                },
+                text: ''
+            },
+        }
     },
     methods: {
         setupCodapTable: function () {
@@ -172,7 +175,8 @@ const app = new Vue({
                         attrs: Object.values(dataFields).map(function (field) {
                             return {
                                 name: field,
-                                type: field === 'Chirp Time' ? 'date' : 'numeric'
+                                // type: field === 'Chirp Time' ? 'date' : 'numeric'
+                                type: 'numeric'
                             }
                         })
                     }],
@@ -182,9 +186,9 @@ const app = new Vue({
 
         recordMeasurement: function () {
             // let time = CSOUND_AUDIO_CONTEXT.currentTime;
-            // data[dataFields.time] = time;
             let data = {};
-            data[dataFields.time] = new Date();
+            // data[dataFields.time] = new Date();
+            data[dataFields.time] = this.game.time.sec + this.game.time.ms;
             data[dataFields.delL] = this.echoState.leftDelay;
             data[dataFields.delR] = this.echoState.rightDelay;
             data[dataFields.attenL] = this.echoState.leftIntensity;
@@ -213,7 +217,7 @@ const app = new Vue({
             this.lighting.image.alpha = this.lighting.alpha.get(0);
             this.lighting.image.interactive = true;
             this.lighting.image.on('pointerdown', _ => {
-                if (this.paused) {
+                if (this.game.paused) {
                     if (this.target.image.position.x < mousePosition.x+this.crossHair.radius &&
                         this.target.image.position.x > mousePosition.x-this.crossHair.radius &&
                         this.target.image.position.y < mousePosition.y+this.crossHair.radius &&
@@ -248,13 +252,13 @@ const app = new Vue({
             this.signal.image.position.set(this.canvasDim.width/2, this.canvasDim.height * 0.77);
             this.signal.image.alpha = 0.0;
 
-            this.countDown.text = new PIXI.Text('', {
-                font: '100px',
+            this.game.time.text = new PIXI.Text('', {
+                font: '20px',
                 fill: 'white',
                 align: 'center'
             });
-            this.countDown.text.anchor.set(0.5);
-            this.countDown.text.position.set(this.canvasDim.width / 2, this.canvasDim.height / 2);
+            this.game.time.text.anchor.set(0.5);
+            this.game.time.text.position.set(this.canvasDim.width * 0.05, this.canvasDim.height * 0.05);
 
             const mousePositionText = new PIXI.Text('', {
                 font: '20px',
@@ -268,9 +272,9 @@ const app = new Vue({
             stage.addChild(forest);
             stage.addChild(this.lighting.image);
             stage.addChild(this.target.image);
-            // stage.addChild(this.countDown.text);
             stage.addChild(mousePositionText);
             stage.addChild(this.signal.image);
+            stage.addChild(this.game.time.text);
             stage.addChild(this.crossHair.image);
             stage.addChild(this.rays.left);
             stage.addChild(this.rays.right);
@@ -294,7 +298,7 @@ const app = new Vue({
                 requestAnimationFrame(draw);
                 renderer.render(stage);
 
-                if (app.paused) {
+                if (app.game.paused) {
                     if (mouseWithinBoundary()) {
                         app.crossHair.image.alpha = app.crossHair.alpha;
                         app.crossHair.image.position.set(mousePosition.x, mousePosition.y);
@@ -328,7 +332,7 @@ const app = new Vue({
             csound.Event('i "CHIRP" 0 2');
             this.animateSignal();
 
-            if (this.game.active && !this.paused) {
+            if (this.game.active && !this.game.paused) {
                 this.recordMeasurement();
             }
         },
@@ -381,11 +385,14 @@ const app = new Vue({
             if (bool) {
                 this.target.phaseOffset += this.target.animator.phase() % 1;
                 this.target.animator.stop();
+                this.game.timer.stop();
+                this.game.time.offsets.ms += this.game.timer.phase() % 1;
             } else {
                 this.target.animator.play();
+                this.game.timer.play();
             }
 
-            this.paused = bool;
+            this.game.paused = bool;
         },
 
         darkenRoom: function (bool) {
@@ -406,10 +413,6 @@ const app = new Vue({
             }
         },
 
-        countUp: function () {
-
-        },
-
         randomWalk: function () {
             const len = 100;
             let xt = dtm.random(dtm.randi(1,10,20).get(0));
@@ -426,6 +429,8 @@ const app = new Vue({
                 this.target.image.position.set(x * this.canvasDim.width, (1-y) * this.canvasDim.height);
                 this.setEchoState(x, y);
             }).play();
+
+            this.startClock();
         },
 
         moveTarget: function (ID) {
@@ -462,8 +467,19 @@ const app = new Vue({
             if (curve) {
                 this.target.animator.curve(curve);
             }
+
+            this.startClock();
+        },
+
+        startClock: function (bool) {
+            this.game.timer = dtm.music().amp(0).rep().play().phase((p,i) => {
+                this.game.time.sec = i;
+                this.game.time.ms = p.add(this.game.time.offsets.ms).get(0);
+                this.game.time.text.text = Math.floor(this.game.time.sec + this.game.time.ms);
+            });
         }
     },
+
     mounted: function () {
         this.setupCanvas();
 
@@ -479,8 +495,11 @@ const app = new Vue({
             if (this.game.level !== v) {
                 this.game.level = v;
 
-                if (!this.paused) {
+                if (!this.game.paused) {
                     this.target.animator.stop();
+                    this.game.timer.stop();
+                    this.game.timer = null;
+                    this.game.time.offsets.ms = 0;
                     if (v === 0) {
                         this.randomWalk();
                     } else {
