@@ -406,6 +406,21 @@ const app = new Vue({
                 width: this.dim.width,
                 height: this.dim.height + 25
             }
+        }).then(_ => {
+            this.getDataContextList().then(() => {
+                if (this.data.contextList.length !== 0) {
+                    // Using the most recent data set.
+                    // TODO: Not general
+                    this.data.context = this.data.contextList[this.data.contextList.length-1];
+                    this.getCollectionList().then(() => {
+                        if (this.data.collectionList.length !== 0) {
+                            this.data.collection = this.data.collectionList[0];
+                            this.getAttrList();
+                            this.getAllCases();
+                        }
+                    });
+                }
+            });
         });
 
         codapInterface.on('notify', '*', notice => {
