@@ -1,0 +1,114 @@
+<!DOCTYPE html>
+<html lang="en" xmlns:v-on="http://www.w3.org/1999/xhtml">
+<head>
+    <meta charset="UTF-8">
+    <title>Granular Synthesis Tests</title>
+    <script type="text/javascript" src="../../Common/js/iframe-phone.js"></script>
+    <script type="text/javascript" src="../../Common/js/CodapInterface.js"></script>
+    <script type="text/javascript" src="../lib/CodapHelper.js"></script>
+
+    <script type="text/javascript" src="../lib/vue.min.js"></script>
+    <script type="text/javascript" src="../lib/NexusUI.js"></script>
+    <script type="text/javascript" src="../lib/dtm.min.js"></script>
+
+    <style type="text/css">
+        .controller-container {
+            display: flex;
+            align-items: center;
+            justify-content: left;
+        }
+
+        .controller-container > label {
+            width: 3em;
+        }
+
+        .mapper-container {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div>
+        <div class="controller-container">
+            <label for="play-toggle">Play</label>
+            <span id="play-toggle"></span>
+        </div>
+        <div class="controller-container">
+            <label for="speed-slider">Speed</label>
+            <span id="speed-slider"></span>
+        </div>
+    </div>
+
+    <div class="mapper-container">
+        Context
+        <label>
+            <select v-model="focusedContext" v-on:change="onContextFocused">
+                <option disabled value="" hidden>Select context</option>
+                <option v-for="context in contexts">{{context}}</option>
+            </select>
+        </label>
+    </div>
+
+    <!--<div>-->
+        <!--Collection-->
+        <!--<label>-->
+            <!--<select v-model="focusedCollection" v-on:change="onCollectionFocused">-->
+                <!--<option disabled value="" hidden>Select context first</option>-->
+                <!--<option v-for="collection in collections">{{collection}}</option>-->
+            <!--</select>-->
+        <!--</label>-->
+    <!--</div>-->
+
+    <div class="mapper-container">
+        Pitch Attr
+        <label>
+            <select v-model="pitchAttribute" v-on:change="onPitchAttributeSelected">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+            </select>
+        </label>
+
+        <div>
+            <label>
+                <input type="checkbox" v-model="pitchAttrIsDate" v-on:change="onPitchAttributeSelected"> DateTime
+            </label>
+            <label>
+                <input type="checkbox" v-model="pitchAttrIsDescending" v-on:change="onPitchAttributeSelected"> Descending
+            </label>
+        </div>
+    </div>
+
+    <div class="mapper-container">
+        Time Attr
+        <label>
+            <select v-model="timeAttribute" v-on:change="onTimeAttributeSelected">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+            </select>
+        </label>
+
+        <div>
+            <label>
+                <input type="checkbox" v-model="timeAttrIsDate" v-on:change="onTimeAttributeSelected"> DateTime
+            </label>
+            <label>
+                <input type="checkbox" v-model="timeAttrIsDescending" v-on:change="onTimeAttributeSelected"> Descending
+            </label>
+        </div>
+    </div>
+
+    <div class="mapper-container">
+        Synthesis
+        <label>
+            <select v-model="selectedCsd" v-on:change="onCsdFileSelected">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="csdFile in csdFiles">{{csdFile}}</option>
+            </select>
+        </label>
+    </div>
+</div>
+<script type="text/javascript" src="app.js"></script>
+<script type="text/javascript" src="../lib/Csound/csound.js"></script>
+</body>
+</html>
