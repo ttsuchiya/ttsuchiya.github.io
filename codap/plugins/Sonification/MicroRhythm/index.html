@@ -43,27 +43,17 @@
     <div class="mapper-container">
         Context
         <label>
-            <select v-model="focusedContext" v-on:change="onContextFocused">
+            <select v-model="focusedContext" v-on:change="onContextFocused" id="contextDropArea">
                 <option disabled value="" hidden>Select context</option>
                 <option v-for="context in contexts">{{context}}</option>
             </select>
         </label>
     </div>
 
-    <!--<div>-->
-        <!--Collection-->
-        <!--<label>-->
-            <!--<select v-model="focusedCollection" v-on:change="onCollectionFocused">-->
-                <!--<option disabled value="" hidden>Select context first</option>-->
-                <!--<option v-for="collection in collections">{{collection}}</option>-->
-            <!--</select>-->
-        <!--</label>-->
-    <!--</div>-->
-
     <div class="mapper-container">
         Pitch Attr
         <label>
-            <select v-model="pitchAttribute" v-on:change="onPitchAttributeSelected">
+            <select v-model="pitchAttribute" v-on:change="onPitchAttributeSelected" id="pitchAttrDropArea">
                 <option disabled value="" hidden>Select context first</option>
                 <option v-for="attribute in attributes">{{attribute}}</option>
             </select>
@@ -82,7 +72,7 @@
     <div class="mapper-container">
         Time Attr
         <label>
-            <select v-model="timeAttribute" v-on:change="onTimeAttributeSelected">
+            <select v-model="timeAttribute" v-on:change="onTimeAttributeSelected" id="timeAttrDropArea">
                 <option disabled value="" hidden>Select context first</option>
                 <option v-for="attribute in attributes">{{attribute}}</option>
             </select>

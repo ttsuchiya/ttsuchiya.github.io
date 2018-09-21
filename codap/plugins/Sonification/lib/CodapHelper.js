@@ -16,6 +16,8 @@ class CodapHelper {
         this.items = null;
         this.itemAttributes = null;
         this.itemAttrInfo = null;
+
+        this.queryInProgress = false;
     }
 
     init(name, dimensions, version='1.0') {
@@ -50,17 +52,23 @@ class CodapHelper {
     }
 
     queryAllData() {
-        this.data = {};
 
         return new Promise((resolve) => {
-            this.queryContextList().then(() => {
-                this.queryCollectionList().then(() => {
-                    this.queryAllCases().then(() => {
-                        this.fillStructure();
-                        this.queryAllItems().then(resolve);
+            if (this.queryInProgress) {
+                resolve();
+            } else {
+                this.queryInProgress = true;
+                this.data = {};
+                this.queryContextList().then(() => {
+                    this.queryCollectionList().then(() => {
+                        this.queryAllCases().then(() => {
+                            this.fillStructure();
+                            this.queryAllItemsSync().then(resolve);
+                            this.queryInProgress = false;
+                        });
                     });
                 });
-            });
+            }
         });
     }
 
@@ -101,7 +109,8 @@ class CodapHelper {
         }).reduce((a,b) => a.concat(b), []));
     }
 
-    queryAllItems() {
+    // TODO: Asynchronous getItem can time out in Chrome as of Sep 17, 2018. Have to synchronize?
+    queryAllItemsAsync() {
         this.items = {};
 
         return Promise.all(Object.keys(this.data).map(context => {
@@ -153,6 +162,80 @@ class CodapHelper {
             //
             //     this.item
             // })
+        });
+    }
+
+    queryAllItemsSync() {
+        return new Promise(resolve => {
+            this.items = {};
+
+            let queryList = Object.keys(this.data).map(context => {
+                this.items[context] = [];
+
+                return Object.values(this.data[context]).map(cases => {
+                    return cases.map((c,i) => {
+                        return {
+                            context: context,
+                            caseID: c.id,
+                            caseIndex: i
+                        };
+                    });
+                }).reduce((a,b) => a.concat(b), []);
+            }).reduce((a,b) => a.concat(b), []);
+
+            if (queryList.length) {
+                let getItemRecursive = queryIndex => {
+                    let context = queryList[queryIndex].context;
+                    let caseID = queryList[queryIndex].caseID;
+                    let caseIndex = queryList[queryIndex].caseIndex; // Note: Different from CODAP's case index.
+
+                    this.codapInterface.sendRequest({
+                        action: 'get',
+                        resource: `dataContext[${context}].itemByCaseID[${caseID}]`
+                    }).then(result => {
+                        if (result.success) {
+                            this.items[context][caseIndex] = {
+                                values: result.values.values,
+                                id: caseID,
+                                itemID: result.values.id
+                            };
+                        } else {
+                            // Fallback for when hierarchical formula breaks the itemByCaseID API.
+                            let collections = this.getCollectionsForContext(context);
+                            let itemParts = collections.map(collection => {
+                                // For a parent case, use its values together with children cases to reconstruct the item.
+                                return this.data[context][collection].find(pc => pc.id === caseID || pc.children.includes(caseID));
+                            }).filter(pc => typeof(pc) !== 'undefined').map(pc => pc.values);
+
+                            let item = Object.assign({}, ...itemParts);
+
+                            this.items[context][caseIndex] = {
+                                values: item,
+                                id: caseID,
+                                itemID: null // Item ID not available!
+                            }
+                        }
+
+                        if (queryList.length === ++queryIndex) {
+                            this.itemAttributes = {};
+
+                            Object.keys(this.items).forEach(context => {
+                                if (this.items[context].length) {
+                                    this.itemAttributes[context] = Object.keys(this.items[context][0].values);
+                                }
+                            });
+
+                            resolve();
+                        } else {
+                            getItemRecursive(queryIndex);
+                        }
+                    });
+                };
+
+                getItemRecursive(0);
+            } else {
+                resolve();
+            }
         });
     }
 

@@ -30,7 +30,11 @@ instr 1, TRIG
 schedkwhen gktrig, 0, 0, "GRAIN", p4 * 1/gkfreq, 0.1, p5, logcurve(p6, 30)
 endin
 
-instr GRAIN
+instr 2, KILL
+turnoff2 "GRAIN", 0, 1
+endin
+
+instr 3, GRAIN
 iatk = 0.002
 igain = p5 * 0.075
 aenv = madsr:a(iatk, p3-iatk, 0, p3-iatk) * igain

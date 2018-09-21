@@ -117,6 +117,14 @@ const app = new Vue({
 
             // this.focusOnFirstContext();
             this.contexts = helper.getContexts();
+
+            if (this.focusedContext) {
+                this.attributes = helper.getAttributesForContext(this.focusedContext);
+
+                if (this.playing) {
+                    this.reselectCases();
+                }
+            }
         },
         calcRange: function (attribute, isDateTime, inverted) {
             // let attrValues = helper.getAttributeValues(this.focusedContext, this.focusedCollection, attribute);
@@ -271,6 +279,55 @@ const app = new Vue({
 
         this.selectedCsd = this.csdFiles[0];
 
+        window.addEventListener('message', e => {
+            let data = e.data;
+            let x = data.values && data.values.x;
+            let y = data.values && data.values.y;
+
+            let dropTargetIDs = ['pitchAttrDropArea', 'timeAttrDropArea', 'contextDropArea'];
+
+            if (x && y) {
+                let els = document.elementsFromPoint(x, y);
+
+                if (data.action === 'drag') {
+                    dropTargetIDs.forEach(id => {
+                        let dropTarget = document.getElementById(id);
+                        let isInDropTarget = els.some(el => el.id === id);
+
+                        if (isInDropTarget) {
+                            dropTarget.style.backgroundColor = 'rgba(255,255,0,0.5)';
+                        } else {
+                            dropTarget.style.backgroundColor = 'transparent';
+                        }
+                    });
+
+                } else if (data.action === 'drop') {
+                    dropTargetIDs.forEach(id => {
+                        let dropTarget = document.getElementById(id);
+                        let isInDropTarget = els.some(el => el.id === id);
+
+                        if (isInDropTarget) {
+                            if (this.contexts && this.contexts.includes(data.values.ctxName) && this.focusedContext !== data.values.ctxName) {
+                                this.focusedContext = data.values.ctxName;
+                                this.onContextFocused();
+                            }
+
+                            if (this.attributes && this.attributes.includes(data.values.attrName)) {
+                                if (id.startsWith('pitch')) {
+                                    this.pitchAttribute = data.values.attrName;
+                                    this.onPitchAttributeSelected();
+                                } else if (id.startsWith('time')) {
+                                    this.timeAttribute = data.values.attrName;
+                                    this.onTimeAttributeSelected();
+                                }
+                            }
+                        }
+
+                        dropTarget.style.backgroundColor = 'transparent';
+                    });
+                }
+            }
+        });
     }
 });
 

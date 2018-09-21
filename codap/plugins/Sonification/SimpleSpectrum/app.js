@@ -2,11 +2,13 @@
  * Created by Takahiko Tsuchiya on 7/11/18.
  */
 
-let SimpleSpectrum = {
-    pluginDim: [350, 230],
-    magMultiSlider: null,
-    magSliderSize: [500, 250],
-    magSliderEnabled: false,
+const helper = new CodapHelper(codapInterface);
+
+const SimpleSpectrum = {
+    dimensions: {
+        width: 350,
+        height: 230
+    },
 
     playButton: null,
     pitchSlider: null,
@@ -38,17 +40,6 @@ let SimpleSpectrum = {
 
         self.actx = new (window.AudioContext || window.webkitAudioContext)();
 
-        if (self.magSliderEnabled) {
-            self.magMultiSlider = new Nexus.Multislider('#mag-table', {
-                size: self.magSliderSize,
-                numberOfSliders: self.size,
-                min: 0,
-                max: 1,
-                step: 0,
-                values: self.real
-            });
-        }
-
         self.playButton = new Nexus.Toggle('#play-toggle', {
             size: [40, 20],
             state: true
@@ -62,20 +53,6 @@ let SimpleSpectrum = {
             step: 0,
             value: 0.5
         });
-
-        if (self.magSliderEnabled) {
-            self.magMultiSlider.on('change', function (slider) {
-                // no need to update the magnitude array?
-                // self.magnitudes[slider.index] = slider.value;
-
-                // if (self.synth.osc) {
-                //     let wave = self.actx.createPeriodicWave(self.real, self.imag, {
-                //         disableNormalization: !self.normalize
-                //     });
-                //     self.synth.osc.setPeriodicWave(wave);
-                // }
-            });
-        }
 
         self.playButton.on('change', function (v) {
             if (v) {
@@ -96,20 +73,14 @@ let SimpleSpectrum = {
         self.synth.frequency = self.pitchCurve.phase(.5).get(0);
         self.play();
 
-        codapInterface.init({
-            name: 'Simple Spectrum',
-            dimensions: {
-                width: self.pluginDim[0],
-                height: self.pluginDim[1]
-            },
-            title: 'Simple Spectrum',
-            version: '1.0'
-        }).then(function () {
-            self.queryDataContext();
-        });
+        helper.init('Simple Spectrum', self.dimensions, '1.01').then(self.queryDataContext);
 
         codapInterface.on('notify', '*', function (notice) {
-            console.log(notice);
+            if (!helper.checkNoticeIdentity(notice)) {
+                return null;
+            }
+
+            // console.log(notice);
             if (notice.resource === 'documentChangeNotice') {
                 self.queryDataContext();
             } else if (notice.resource.includes('dataContextChangeNotice')) {
@@ -160,6 +131,56 @@ let SimpleSpectrum = {
                 }
             }
         });
+
+        // window.addEventListener('message', e => {
+        //     let data = e.data;
+        //     let x = data.values && data.values.x;
+        //     let y = data.values && data.values.y;
+        //
+        //     let dropTargetIDs = ['pitchAttrDropArea', 'timeAttrDropArea'];
+        //
+        //     if (x && y) {
+        //         let els = document.elementsFromPoint(x, y);
+        //
+        //         if (data.action === 'drag') {
+        //             dropTargetIDs.forEach(id => {
+        //                 let dropTarget = document.getElementById(id);
+        //                 let isInDropTarget = els.some(el => el.id === id);
+        //
+        //                 if (isInDropTarget) {
+        //                     dropTarget.style.backgroundColor = 'rgba(255,255,0,0.5)';
+        //                 } else {
+        //                     dropTarget.style.backgroundColor = 'transparent';
+        //                 }
+        //             });
+        //
+        //         } else if (data.action === 'drop') {
+        //             dropTargetIDs.forEach(id => {
+        //                 let dropTarget = document.getElementById(id);
+        //                 let isInDropTarget = els.some(el => el.id === id);
+        //
+        //                 if (isInDropTarget) {
+        //                     if (this.contexts && this.contexts.includes(data.values.ctxName) && this.focusedContext !== data.values.ctxName) {
+        //                         this.focusedContext = data.values.ctxName;
+        //                         this.onContextFocused();
+        //                     }
+        //
+        //                     if (this.attributes && this.attributes.includes(data.values.attrName)) {
+        //                         if (id.startsWith('pitch')) {
+        //                             this.pitchAttribute = data.values.attrName;
+        //                             this.onPitchAttributeSelected();
+        //                         } else if (id.startsWith('time')) {
+        //                             this.timeAttribute = data.values.attrName;
+        //                             this.onTimeAttributeSelected();
+        //                         }
+        //                     }
+        //                 }
+        //
+        //                 dropTarget.style.backgroundColor = 'transparent';
+        //             });
+        //         }
+        //     }
+        // });
     },
 
     queryDataContext: function () {
@@ -215,12 +236,6 @@ let SimpleSpectrum = {
         self.real = app.normalizedCoefs().prepend(0).get();
         self.imag = new Float32Array(self.size);
         self.resetPeriodicWave(self.real);
-
-        if (self.magSliderEnabled) {
-            self.magMultiSlider.numberOfSliders = self.size;
-            self.magMultiSlider.resize(self.magSliderSize[0],self.magSliderSize[1]);
-            self.magMultiSlider.setAllSliders(self.real);
-        }
     },
 
     setNewCoefsByPosition: function (coefs, binIndices) {
@@ -242,12 +257,6 @@ let SimpleSpectrum = {
 
         // self.resetPeriodicWave(self.real);
         self.filterBySelection();
-
-        if (self.magSliderEnabled) {
-            self.magMultiSlider.numberOfSliders = self.size;
-            self.magMultiSlider.resize(self.magSliderSize[0],self.magSliderSize[1]);
-            self.magMultiSlider.setAllSliders(self.real);
-        }
     },
 
     filterBySelection: function () {
@@ -263,10 +272,6 @@ let SimpleSpectrum = {
         self.resetPeriodicWave(real);
 
         // TODO: return real-val array rather than calling resetPeriodicWave implicitly
-
-        if (self.magSliderEnabled) {
-            self.magMultiSlider.setAllSliders(real);
-        }
     },
 
     resetPeriodicWave: function (real) {
@@ -280,7 +285,7 @@ let SimpleSpectrum = {
     }
 };
 
-let app = new Vue({
+const app = new Vue({
     el: '#app',
     data: {
         dataCtx: '',
@@ -351,12 +356,14 @@ let app = new Vue({
                 return !(Number.isNaN(v));
             });
 
-            // TODO: bad assumption
-            if (positionBy.get('min') > 0) {
-                positionBy.range(0,.95,0,positionBy.get('max'));
-            } else {
-                positionBy.range(0,.95);
-            }
+            // bad assumption
+            // if (positionBy.get('min') > 0) {
+            //     positionBy.range(0,.95,0,positionBy.get('max'));
+            // } else {
+            //     positionBy.range(0,.95);
+            // }
+
+            positionBy.range(0,.95);
 
             // Increment all by 1 for DC
             app.binIndices = dtm.range(SimpleSpectrum.sizeWhenOrdered)

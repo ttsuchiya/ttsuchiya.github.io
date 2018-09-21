@@ -2,6 +2,8 @@
  * Created by Takahiko Tsuchiya on 8/21/18.
  */
 
+const helper = new CodapHelper(codapInterface);
+
 const app = new Vue({
     el: '#app',
     data: {
@@ -10,6 +12,7 @@ const app = new Vue({
             height: 200
         },
 
+        helper: null,
         data: null,
         contextList: [],
         collectionList: [],
@@ -29,24 +32,24 @@ const app = new Vue({
         }
     },
     methods: {
-        checkNoticeIdentity: function (notice) {
-            let res = true;
-            if (this.prevNotice) {
-                res = JSON.stringify(notice) !== JSON.stringify(this.prevNotice);
-            }
+        // checkNoticeIdentity: function (notice) {
+        //     let res = true;
+        //     if (this.prevNotice) {
+        //         res = JSON.stringify(notice) !== JSON.stringify(this.prevNotice);
+        //     }
+        //
+        //     this.prevNotice = notice;
+        //     return res; // True if the notification is not a duplicate.
+        // },
 
-            this.prevNotice = notice;
-            return res; // True if the notification is not a duplicate.
-        },
-
-        getAllData: function () {
+         getAllData: function () {
             this.data = {};
 
             this.getContextList().then(_ => {
                 this.getCollectionList().then(_ => {
                     this.getAllCases().then(_ => {
                         this.fillLists();
-                        this.selectFirstCollection();
+                        this.selectLastCollection();
                     });
                 });
             });
@@ -54,7 +57,9 @@ const app = new Vue({
 
         fillLists: function () {
             this.contextList = Object.keys(this.data);
-            this.collectionList = Object.keys(this.data[this.contextList[0]]);
+            if (this.contextList.length !== 0) {
+                this.collectionList = Object.keys(this.data[this.contextList[0]]);
+            }
         },
 
         onContextSelected: function () {
@@ -64,6 +69,11 @@ const app = new Vue({
         selectFirstCollection: function () {
             this.selectedContext = this.contextList[0];
             this.selectedCollection = this.collectionList[0];
+        },
+
+        selectLastCollection: function () {
+            this.selectedContext = this.contextList[0];
+            this.selectedCollection = this.collectionList[this.collectionList.length-1];
         },
 
         getContextList: function () {
@@ -100,7 +110,7 @@ const app = new Vue({
                         this.data[context][collection] = result.values.cases.map(c => c.case);
                     });
                 });
-            }).reduce((a,b) => a.concat(b)));
+            }).reduce((a,b) => a.concat(b), []));
         },
 
         start: function () {
@@ -147,12 +157,18 @@ const app = new Vue({
         }).then(this.getAllData);
 
         codapInterface.on('notify', '*', notice => {
-            if (!this.checkNoticeIdentity(notice)) {
+            if (!helper.checkNoticeIdentity(notice)) {
                 return null; // Don't do anything for duplicate notices.
             }
 
-            if (notice.resource === 'documentChangeNotice' || notice.resource.includes('dataContextChangeNotice')) {
+            if (notice.resource === 'documentChangeNotice') {
                 this.getAllData();
+
+                // this.helper.getAllData();
+            } else if (notice.resource.includes('dataContextChangeNotice')) {
+                if (notice.values.operation !== 'selectCases') {
+                    this.getAllData();
+                }
             }
         });
 
