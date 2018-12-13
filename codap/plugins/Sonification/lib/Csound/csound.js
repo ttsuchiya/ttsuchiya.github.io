@@ -333,8 +333,8 @@ Csound = function() {
                 let messArr = message.trimStart().split(/\s+/);
                 if (messArr[0] === 'ftable' && messArr[1] === num+':' && messArr[3] === 'points,') {
                     csound.Csound.setTable(num, table);
-                    cs.Csound.node.requestTable(num, function () {
-                        resolve(cs.Csound.getTable(num));
+                    csound.Csound.node.requestTable(num, function () {
+                        resolve(csound.Csound.getTable(num));
                         delete window.createTableCallbacks[num];
                     });
                 }

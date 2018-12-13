@@ -1,0 +1,118 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Glissando</title>
+
+    <script type="text/javascript" src="../../Common/js/iframe-phone.js"></script>
+    <script type="text/javascript" src="../../Common/js/CodapInterface.js"></script>
+    <script type="text/javascript" src="../lib/CodapPluginHelper.js"></script>
+    <script type="text/javascript" src="../lib/CodapDragHandler.js"></script>
+
+    <script type="text/javascript" src="../lib/PluginMovesRecorder.js"></script>
+    <script type="text/javascript" src="../common/DataMovesData.js"></script>
+    <script type="text/javascript" src="../common/TransportData.js"></script>
+
+    <script type="text/javascript" src="../lib/vue.min.js"></script>
+    <script type="text/javascript" src="../lib/NexusUI.js"></script>
+    <script type="text/javascript" src="../lib/dtm.min.js"></script>
+
+    <link rel="stylesheet" href="../common/styles.css">
+
+    <style type="text/css">
+        .mapper-container {
+            margin-top: 10px;
+        }
+    </style>
+</head>
+<body>
+<div id="app">
+    <div class="loading-screen" v-if="!csoundReady">Loading the plugin...</div>
+
+    <div class="mapper-container">
+        Context
+        <label>
+            <select v-model="context" v-on:change="onContextSelectedByUI" class="drop-area" id="contextDropArea">
+                <option disabled value="" hidden>Select context</option>
+                <option v-for="context in contexts">{{context}}</option>
+            </select>
+        </label>
+    </div>
+
+    <hr>
+    <div class="mapper-container">
+        Pitch 1
+        <label>
+            <select v-model="pitchAttrOne" v-on:change="onPitchAttrOneSelectedByUI" class="drop-area" id="pitchAttrOne">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+
+        <!--<div>-->
+            <!--<label>-->
+                <!--<input type="checkbox" v-model="pitchAttrOneIsDate" v-on:change="onPitchAttrOneSelectedByUI"> DateTime-->
+            <!--</label>-->
+            <!--<label>-->
+                <!--<input type="checkbox" v-model="pitchAttrOneIsDescending" v-on:change="onPitchAttrOneSelectedByUI"> Descending-->
+            <!--</label>-->
+        <!--</div>-->
+    </div>
+
+    <div class="mapper-container">
+        Loudness 1
+        <label>
+            <select v-model="loudnessAttrOne" v-on:change="onLoudnessAttrOneSelectedByUI" class="drop-area" id="loudnessAttrOne">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+
+        <!--<div>-->
+            <!--<label>-->
+                <!--<input type="checkbox" v-model="loudnessAttrIsDate" v-on:change="onTimeAttrOneSelectedByUI"> DateTime-->
+            <!--</label>-->
+            <!--<label>-->
+                <!--<input type="checkbox" v-model="loudnessAttrIsDescending" v-on:change="onTimeAttrOneSelectedByUI"> Descending-->
+            <!--</label>-->
+        <!--</div>-->
+    </div>
+
+    <hr>
+    <div class="mapper-container">
+        Pitch 2
+        <label>
+            <select v-model="pitchAttrTwo" v-on:change="onPitchAttrTwoSelectedByUI" class="drop-area" id="pitchAttrTwo">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+    </div>
+
+    <div class="mapper-container">
+        Loudness 2
+        <label>
+            <select v-model="loudnessAttrTwo" v-on:change="onLoudnessAttrTwoSelectedByUI" class="drop-area" id="loudnessAttrTwo">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+    </div>
+
+    <hr>
+    <div>
+        Interpolate 1 & 2 <span id="morph-slider"></span>
+    </div>
+</div>
+<script type="text/javascript" src="app.js"></script>
+<script type="text/javascript" src="../lib/Csound/csound.js"></script>
+</body>
+</html>

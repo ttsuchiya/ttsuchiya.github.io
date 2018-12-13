@@ -1,12 +1,16 @@
-const helper = new CodapHelper(codapInterface);
+const helper = new CodapPluginHelper(codapInterface);
+const dragHandler = new CodapDragHandler();
+const moveRecorder = new PluginMovesRecorder(helper);
 
 const app = new Vue({
     el: '#app',
     data: {
+        name: 'Micro Rhythm',
         dim: {
             width: 300,
             height: 180
         },
+        loading: true,
 
         data: null,
         contexts: null,
@@ -15,107 +19,182 @@ const app = new Vue({
         focusedContext: null,
         focusedCollection: null,
         prevSelectedIDs: [],
+        globals: [],
 
         pitchAttribute: null,
         pitchAttrRange: null,
         pitchAttrIsDate: false,
         pitchAttrIsDescending: false,
+        pitchArray: [],
 
         timeAttribute: null,
         timeAttrRange: null,
         timeAttrIsDate: false,
         timeAttrIsDescending: false,
+        timeArray: [],
 
+        durationAttribute: null,
+        durationAttrRange: null,
+        durationAttrIsDate: false,
+        durationAttrIsDescending: false,
+        durationArray: [],
+
+        loudnessAttribute: null,
+        loudnessAttrRange: null,
+        loudnessAttrIsDate: false,
+        loudnessAttrIsDescending: false,
+        loudnessArray: [],
+
+        stereoAttribute: null,
+        stereoAttrRange: null,
+        stereoAttrIsDate: false,
+        stereoAttrIsDescending: false,
+        stereoArray: [],
+
+        click: true,
+
+        // TODO: Consolidate into a single file.
         csdFiles: [
             'SinusoidalGrains.csd',
+            'SawTooth.csd',
+            'PitchedNoise.csd',
             'ContDrums.csd',
             'FMGranular.csd'
         ],
         selectedCsd: null,
         csoundReady: false,
+
+        synchronized: true,
         playing: false,
-        playbackSpeed: 0.5,
-        pitchArray: [],
-        timeArray: [],
+        playbackSpeed: 0.5
     },
     methods: {
-        resetPitchTimeMaps: function () {
+        setupDrag() {
+            dragHandler.on('dragenter', (data, els) => {
+                els.forEach(el => {
+                    el.style.backgroundColor = 'rgba(255,255,0,0.5)';
+                });
+            });
+
+            dragHandler.on('dragleave', (data, els) => {
+                els.forEach(el => {
+                    el.style.backgroundColor = 'transparent';
+                });
+            });
+
+            dragHandler.on('drop', (data, els) => {
+                if (this.contexts && this.contexts.includes(data.context.name) && this.focusedContext !== data.context.name) {
+                    this.focusedContext = data.context.name;
+                    this.onContextFocused();
+                }
+
+                els.forEach(el => {
+                    if (this.attributes && this.attributes.includes(data.attribute.name)) {
+                        if (el.id.startsWith('pitch')) {
+                            this.pitchAttribute = data.attribute.name;
+                            this.onPitchAttributeSelectedByUI();
+                        } else if (el.id.startsWith('time')) {
+                            this.timeAttribute = data.attribute.name;
+                            this.onTimeAttributeSelectedByUI();
+                        } else if (el.id.startsWith('duration')) {
+                            this.durationAttribute = data.attribute.name;
+                            this.onDurationAttributeSelectedByUI();
+                        } else if (el.id.startsWith('loudness')) {
+                            this.loudnessAttribute = data.attribute.name;
+                            this.onLoudnessAttributeSelectedByUI();
+                        } else if (el.id.startsWith('stereo')) {
+                            this.stereoAttribute = data.attribute.name;
+                            this.onStereoAttributeSelectedByUI();
+                        }
+                    }
+                });
+            });
+
+            dragHandler.on('dragstart', (data, els) => {
+                els.forEach(el => {
+                    el.style.outline = '3px solid rgba(0,255,255,0.5)';
+                });
+            });
+
+            dragHandler.on('dragend', (data, els) => {
+                els.forEach(el => {
+                    el.style.backgroundColor = 'transparent';
+                    el.style.outline = '3px solid transparent';
+                });
+            });
+        },
+        resetPitchTimeMaps() {
             this.pitchAttribute = this.timeAttribute = null;
             this.pitchAttrRange = this.timeAttrRange = null;
         },
-        onContextFocused: function () {
-            // this.collections = helper.getCollectionsForContext(this.focusedContext);
-
+        onContextFocused() {
             // this.attributes = null;
             this.attributes = helper.getAttributesForContext(this.focusedContext);
 
             // this.resetPitchTimeMaps();
         },
-        onCollectionFocused: function () {
-            this.attributes = helper.getAttributesForCollection(this.focusedContext, this.focusedCollection);
-            // this.resetPitchTimeMaps();
-        },
-        onPitchAttributeSelected: function () {
-            this.pitchAttrRange = this.calcRange(this.pitchAttribute, this.pitchAttrIsDate, this.pitchAttrIsDescending);
+        /**
+         * @param type {string} pitch, time, loudness, or stereo
+         **/
+        processMappedAttribute(type) {
+            if (this.checkIfGlobal(this[`${type}Attribute`])) {
+                this[`${type}AttrRange`] = {
+                    len: 1,
+                    min: 0,
+                    max: 1
+                };
+            } else {
+                this[`${type}AttrRange`] = this.calcRange(this[`${type}Attribute`], this[`${type}AttrIsDate`], this[`${type}AttrIsDescending`]);
+            }
 
             if (this.playing) {
                 this.reselectCases();
             }
         },
-        onTimeAttributeSelected: function () {
-            this.timeAttrRange = this.calcRange(this.timeAttribute, this.timeAttrIsDate, this.timeAttrIsDescending);
-
-            if (this.playing) {
-                this.reselectCases();
-            }
+        recordToMoveRecorder(param) {
+            moveRecorder.record({
+                Plugin: this.name,
+                ID: helper.ID, // TODO: Proper plugin ID
+                Type: 'Mapping',
+                Context: this.focusedContext,
+                Attribute: this[`${param}Attribute`],
+                Parameter: param.charAt(0).toUpperCase() + param.slice(1),
+                Direction: this[`${param}AttrIsDescending`] ? 'Descending' : 'Ascending',
+                'Attr Type': this[`${param}AttrIsDate`] ? 'date': 'numeric'
+            });
         },
-        onPitchAttrIsDateChanged: function () {
-
+        onPitchAttributeSelectedByUI() {
+            this.processMappedAttribute('pitch');
+            this.recordToMoveRecorder('pitch');
+        },
+        onTimeAttributeSelectedByUI() {
+            this.processMappedAttribute('time');
+            this.recordToMoveRecorder('time');
+        },
+        onDurationAttributeSelectedByUI() {
+            this.processMappedAttribute('duration');
+            this.recordToMoveRecorder('duration');
+        },
+        onLoudnessAttributeSelectedByUI() {
+            this.processMappedAttribute('loudness');
+            this.recordToMoveRecorder('loudness');
+        },
+        onStereoAttributeSelectedByUI() {
+            this.processMappedAttribute('stereo');
+            this.recordToMoveRecorder('stereo');
         },
 
-        onTimeAttrIsDateChanged: function () {
-
+        checkIfGlobal(attr) {
+            return this.globals.some(g => g.name === attr);
         },
 
-        reselectCases: function () {
-            helper.getSelectedItems(this.focusedContext).then(this.onCasesSelected);
+        reselectCases() {
+            helper.getSelectedItems(this.focusedContext).then(this.onItemsSelected);
         },
-        onCsdFileSelected: function () {
+        onCsdFileSelected() {
 
         },
-        focusOnFirstCollection: function () {
-            this.contexts = helper.getContexts();
-            this.focusedContext = this.contexts[0];
-            this.onContextFocused();
-            this.focusedCollection = this.collections[0];
-            this.onCollectionFocused();
-
-            // if (this.attributes) {
-            //     this.pitchAttribute = this.timeAttribute = this.attributes[0];
-            //     this.onPitchAttributeSelected();
-            //     this.onTimeAttributeSelected();
-            // }
-        },
-        focusOnLastCollection: function () {
-            if (this.contexts = helper.getContexts()) {
-                this.focusedContext = this.contexts[0];
-                this.onContextFocused();
-                this.focusedCollection = this.collections[this.collections.length-1];
-                this.onCollectionFocused();
-            }
-        },
-        focusOnFirstContext: function () {
-            if (this.contexts = helper.getContexts()) {
-                this.focusedContext = this.contexts[0];
-                this.onContextFocused();
-            }
-        },
-        onGetData: function () {
-            // this.focusOnLastCollection();
-            // this.onPitchAttributeSelected();
-            // this.onTimeAttributeSelected();
-
-            // this.focusOnFirstContext();
+        onGetData() {
             this.contexts = helper.getContexts();
 
             if (this.focusedContext) {
@@ -126,7 +205,14 @@ const app = new Vue({
                 }
             }
         },
-        calcRange: function (attribute, isDateTime, inverted) {
+        onGetGlobals() {
+            this.globals = helper.globals;
+
+            if (this.playing) {
+                this.reselectCases();
+            }
+        },
+        calcRange(attribute, isDateTime, inverted) {
             // let attrValues = helper.getAttributeValues(this.focusedContext, this.focusedCollection, attribute);
             let attrValues = helper.getAttrValuesForContext(this.focusedContext, attribute);
 
@@ -149,87 +235,148 @@ const app = new Vue({
             }
         },
 
-        // Cases or items
-        onCasesSelected: function (cases) {
-            if (this.pitchAttrRange) {
-                let range = this.pitchAttrRange.max - this.pitchAttrRange.min;
-                // this.pitchArray = (range === 0) ? cases.map(() => 0.5) : cases.map(d => (d.values[this.pitchAttribute]-this.pitchAttrRange.min)/range);
+        prepMapping(args) {
+            let param = args['param'];
+            let items = args['items'];
+
+            if (this[`${param}AttrRange`]) {
+                let range = this[`${param}AttrRange`].max - this[`${param}AttrRange`].min;
 
                 if (range === 0) {
-                    this.pitchArray = cases.map(c => {
+                    this[`${param}Array`] = items.map(c => {
                         return { id: c.id, val: 0.5 };
                     });
                 } else {
-                    this.pitchArray = cases.map(c => {
-                        let value = this.pitchAttrIsDate ? Date.parse(c.values[this.pitchAttribute]) : c.values[this.pitchAttribute];
-                        return {
-                            id: c.id,
-                            val: (value-this.pitchAttrRange.min)/range
-                        };
-                    });
+                    if (this.checkIfGlobal(this[`${param}Attribute`])) {
+                        let global = this.globals.find(g => g.name === this[`${param}Attribute`]);
+                        let value = (global.value > 1) ? 1 : ((global.value < 0) ? 0 : global.value);
+
+                        this[`${param}Array`] = items.map(c => {
+                            return {
+                                id: c.id,
+                                val: value
+                            }
+                        })
+                    } else {
+                        this[`${param}Array`] = items.map(c => {
+                            let value = this[`${param}AttrIsDate`] ? Date.parse(c.values[this[`${param}Attribute`]]) : c.values[this[`${param}Attribute`]];
+
+                            return {
+                                id: c.id,
+                                val: isNaN(parseFloat(value)) ? NaN : (value-this[`${param}AttrRange`].min)/range
+                            };
+                        });
+                    }
                 }
             }
+        },
 
+        onItemsSelected(items) {
             if (this.timeAttrRange) {
                 let range = this.timeAttrRange.max - this.timeAttrRange.min;
-                // this.timeArray = (range === 0) ? cases.map(() => 0.5) : cases.map(d => (d.values[this.timeAttribute]-this.timeAttrRange.min)/range * ((this.timeAttrRange.len-1)/this.timeAttrRange.len));
 
                 if (range === 0) {
-                    this.timeArray = cases.map(c => {
+                    this.timeArray = items.map(c => {
                         return { id: c.id, val: 0 };
                     });
                 } else {
-                    this.timeArray = cases.map(c => {
-                        let value = this.timeAttrIsDate ? Date.parse(c.values[this.timeAttribute]) : c.values[this.timeAttribute];
-                        return {
-                            id: c.id,
-                            val: (value-this.timeAttrRange.min)/range * ((this.timeAttrRange.len-1)/this.timeAttrRange.len)
-                        }
-                    });
+                    if (this.checkIfGlobal(this.timeAttribute)) {
+                        let global = this.globals.find(g => g.name === this.timeAttribute);
+                        let value = (global.value > 1) ? 1 : ((global.value < 0) ? 0 : global.value);
+
+                        this.timeArray = items.map(c => {
+                            return {
+                                id: c.id,
+                                val: value
+                            }
+                        })
+                    } else {
+                        this.timeArray = items.map(c => {
+                            let value = this.timeAttrIsDate ? Date.parse(c.values[this.timeAttribute]) : c.values[this.timeAttribute];
+                            return {
+                                id: c.id,
+                                val: isNaN(parseFloat(value)) ? NaN : (value-this.timeAttrRange.min)/range * ((this.timeAttrRange.len-1)/this.timeAttrRange.len)
+                            }
+                        });
+                    }
                 }
             }
+
+            ['pitch', 'duration', 'loudness', 'stereo'].forEach(param => this.prepMapping({ param: param, items: items }));
 
             if (this.playing) {
                 this.stopNotes(this.prevSelectedIDs);
                 this.triggerNotes();
             }
 
-            this.prevSelectedIDs = cases.map(c => c.id);
+            this.prevSelectedIDs = items.map(c => c.id);
         },
-        stopNotes: function (ids) {
+        stopNotes(ids) {
             ids.forEach(id => csound.Event(`i -1.${id} 0 1`));
         },
-        triggerNotes: function () {
+        triggerNotes() {
             this.timeArray.forEach((d,i) => {
-                let pitch = this.pitchArray.length === this.timeArray.length ? this.pitchArray[i] : 0.5;
-                csound.Event(`i 1.${d.id} 0 -1 ${d.val} ${pitch.val} ${1-this.timeArray.length/this.timeAttrRange.len*.5}`);
+                // let gain = 1-this.timeArray.length/this.timeAttrRange.len;
+
+                let pitch = this.pitchArray.length === this.timeArray.length ? this.pitchArray[i].val : 0.5;
+                let duration = this.durationArray.length === this.timeArray.length ? this.durationArray[i].val : 0.5;
+                let loudness = this.loudnessArray.length === this.timeArray.length ? this.loudnessArray[i].val * 0.95 + 0.05 : 0.5;
+                let stereo = this.stereoArray.length === this.timeArray.length ? this.stereoArray[i].val : 0.5;
+
+                if (![d.val,pitch,duration,loudness,stereo].some(isNaN)) {
+                    csound.Event(`i 1.${d.id} 0 -1 ${d.val} ${duration} ${pitch} ${loudness} ${stereo}`);
+                }
             });
         },
-        play: function () {
+        play() {
             if (!this.csoundReady) {
                 return null;
             }
 
-            csound.PlayCsd(this.selectedCsd).then(() => {
-                this.playing = true;
-                csound.SetChannel('playbackSpeed', this.playbackSpeed);
+            if (CSOUND_AUDIO_CONTEXT.state !== 'running') {
+                CSOUND_AUDIO_CONTEXT.resume().then(_ => {
+                    this.stop();
 
-                if (this.timeArray.length !== 0) {
-                    this.triggerNotes();
-                }
-            });
+                    csound.PlayCsd(this.selectedCsd).then(() => {
+                        this.playing = true;
+                        csound.SetChannel('playbackSpeed', this.playbackSpeed);
+                        csound.SetChannel('click', this.click ? 1 : 0);
+
+                        if (this.timeArray.length !== 0) {
+                            this.triggerNotes();
+                        }
+                    });
+                });
+            } else {
+                csound.PlayCsd(this.selectedCsd).then(() => {
+                    this.playing = true;
+                    csound.SetChannel('playbackSpeed', this.playbackSpeed);
+                    csound.SetChannel('click', this.click ? 1 : 0);
+
+                    if (this.timeArray.length !== 0) {
+                        this.triggerNotes();
+                    }
+                });
+            }
         },
-        stop: function () {
+        stop() {
             if (!this.csoundReady) {
                 return null;
             }
 
             csound.Stop();
             this.playing = false;
+        },
+        openInfoPage() {
+            helper.openSharedInfoPage();
         }
     },
-    mounted: function () {
-        helper.init('Micro Rhythm', this.dim).then(this.onGetData);
+    mounted() {
+        this.setupDrag();
+
+        helper.init(this.name, this.dim)
+            // .then(helper.monitorLogMessages.bind(helper))
+            .then(this.onGetData);
 
         codapInterface.on('notify', '*', notice => {
             if (!helper.checkNoticeIdentity(notice)) {
@@ -239,20 +386,73 @@ const app = new Vue({
             if (notice.resource === 'documentChangeNotice') {
                 helper.queryAllData().then(this.onGetData);
             } else if (notice.resource.includes('dataContextChangeNotice')) {
-                if (notice.values.operation === 'selectCases') {
-                    if (notice.resource.includes(`[${this.focusedContext}]`)) {
-                        // helper.getSelectedCases(this.focusedContext, this.collections[0]).then(console.log);
-                        helper.getSelectedItems(this.focusedContext).then(this.onCasesSelected);
+                let contextName = notice.resource.split('[').pop().split(']')[0];
+                let operation = notice.values.operation;
+
+                if (contextName === TRANSPORT_DATA.name && operation === 'updateCases') {
+                    let firstItem = helper.items['Transport'][0].itemID; // TODO: A little hacky.
+
+                    if (this.synchronized) {
+                        codapInterface.sendRequest({
+                            action: 'get',
+                            resource: `dataContext[${TRANSPORT_DATA.name}].item[${firstItem}]`
+                        }).then(result => {
+                            let values = result.values.values;
+                            playToggle.state = values.play;
+                            speedSlider.value = values.speed;
+                        });
+                    }
+                } else if (contextName === DATAMOVES_DATA.name) {
+                    if (operation === 'selectCases') {
+                        helper.getSelectedItems(contextName).then(items => {
+                            items.forEach(item => {
+                                let values = item.values;
+                                if (values.ID === helper.ID) {
+                                    let type = values.Parameter && values.Parameter.toLowerCase();
+                                    if (type) {
+                                        this[`${type}Attribute`] = values.Attribute;
+                                        this[`${type}AttrIsDescending`] = values.Direction === 'Descending';
+                                        this[`${type}AttrIsDate`] = values['Attr Type'] === 'date';
+                                        this.processMappedAttribute(type);
+                                    }
+                                }
+                            });
+                        });
+                    } else {
+                        helper.queryDataForContext(contextName);
                     }
                 } else {
-                    helper.queryAllData().then(this.onGetData);
+                    if (operation === 'selectCases') {
+                        if (contextName === this.focusedContext) {
+                            helper.getSelectedItems(this.focusedContext).then(this.onItemsSelected);
+                        }
+                    } else {
+                        helper.queryDataForContext(contextName).then(this.onGetData);
+                    }
                 }
+
+                // else if (notice.values.operation === 'updateCases' || notice.values.operation === 'dependentCases') {
+                //     helper.queryAllData().then(this.onGetData);
+                // }
+            } else if (notice.resource === 'component' && notice.values.type === 'slider') {
+                helper.queryGlobalValues().then(this.onGetGlobals);
+            } else if (notice.resource === 'undoChangeNotice') {
+                helper.queryGlobalValues().then(this.onGetGlobals);
+            } else if (notice.resource === 'logMessageNotice') {
+                // if (notice.values.message.startsWith('plugin')) {
+                //     let values = JSON.parse(notice.values.message.slice(8));
+                //
+                //     if (values.name === 'Transport') {
+                //         playToggle.state = values.values.play;
+                //         speedSlider.value = values.values.speed;
+                //     }
+                // }
             }
         });
 
         let playToggle = new Nexus.Toggle('#play-toggle', {
             size: [40, 20],
-            state: true
+            state: false
         });
 
         playToggle.on('change', v => {
@@ -261,6 +461,25 @@ const app = new Vue({
             } else {
                 this.stop();
             }
+        });
+
+        let clickToggle = new Nexus.Toggle('#click-toggle', {
+            size: [40, 20],
+            state: true
+        });
+
+        clickToggle.on('change', v => {
+            this.click = v;
+            csound.SetChannel('click', v ? 1 : 0);
+        });
+
+        let syncToggle = new Nexus.Toggle('#sync-toggle', {
+            size: [40, 20],
+            state: this.synchronized
+        });
+
+        syncToggle.on('change', v => {
+            this.synchronized = v;
         });
 
         let speedSlider = new Nexus.Slider('#speed-slider', {
@@ -278,60 +497,10 @@ const app = new Vue({
         });
 
         this.selectedCsd = this.csdFiles[0];
-
-        window.addEventListener('message', e => {
-            let data = e.data;
-            let x = data.values && data.values.x;
-            let y = data.values && data.values.y;
-
-            let dropTargetIDs = ['pitchAttrDropArea', 'timeAttrDropArea', 'contextDropArea'];
-
-            if (x && y) {
-                let els = document.elementsFromPoint(x, y);
-
-                if (data.action === 'drag') {
-                    dropTargetIDs.forEach(id => {
-                        let dropTarget = document.getElementById(id);
-                        let isInDropTarget = els.some(el => el.id === id);
-
-                        if (isInDropTarget) {
-                            dropTarget.style.backgroundColor = 'rgba(255,255,0,0.5)';
-                        } else {
-                            dropTarget.style.backgroundColor = 'transparent';
-                        }
-                    });
-
-                } else if (data.action === 'drop') {
-                    dropTargetIDs.forEach(id => {
-                        let dropTarget = document.getElementById(id);
-                        let isInDropTarget = els.some(el => el.id === id);
-
-                        if (isInDropTarget) {
-                            if (this.contexts && this.contexts.includes(data.values.ctxName) && this.focusedContext !== data.values.ctxName) {
-                                this.focusedContext = data.values.ctxName;
-                                this.onContextFocused();
-                            }
-
-                            if (this.attributes && this.attributes.includes(data.values.attrName)) {
-                                if (id.startsWith('pitch')) {
-                                    this.pitchAttribute = data.values.attrName;
-                                    this.onPitchAttributeSelected();
-                                } else if (id.startsWith('time')) {
-                                    this.timeAttribute = data.values.attrName;
-                                    this.onTimeAttributeSelected();
-                                }
-                            }
-                        }
-
-                        dropTarget.style.backgroundColor = 'transparent';
-                    });
-                }
-            }
-        });
     }
 });
 
 function moduleDidLoad() {
     app.csoundReady = true;
-    app.play();
+    // app.play();
 }

@@ -2,14 +2,15 @@
  * Created by Takahiko Tsuchiya on 8/21/18.
  */
 
-const helper = new CodapHelper(codapInterface);
+const helper = new CodapPluginHelper(codapInterface);
+const dragHandler = new CodapDragHandler();
 
 const app = new Vue({
     el: '#app',
     data: {
         dim: {
-            width: 180,
-            height: 200
+            width: 230,
+            height: 145
         },
 
         helper: null,
@@ -21,7 +22,7 @@ const app = new Vue({
 
         sequencer: {
             ticker: null,
-            speed: 1,
+            speed: dtm.data(0.5).expc(50,0,1).expc(50,0,1).range(0.1,25,0,1).get(0),
             offset: 0,
             active: false
         },
@@ -32,17 +33,7 @@ const app = new Vue({
         }
     },
     methods: {
-        // checkNoticeIdentity: function (notice) {
-        //     let res = true;
-        //     if (this.prevNotice) {
-        //         res = JSON.stringify(notice) !== JSON.stringify(this.prevNotice);
-        //     }
-        //
-        //     this.prevNotice = notice;
-        //     return res; // True if the notification is not a duplicate.
-        // },
-
-         getAllData: function () {
+         getAllData() {
             this.data = {};
 
             this.getContextList().then(_ => {
@@ -55,28 +46,28 @@ const app = new Vue({
             });
         },
 
-        fillLists: function () {
+        fillLists() {
             this.contextList = Object.keys(this.data);
             if (this.contextList.length !== 0) {
                 this.collectionList = Object.keys(this.data[this.contextList[0]]);
             }
         },
 
-        onContextSelected: function () {
+        onContextSelected() {
             this.collectionList = Object.keys(this.data[this.selectedContext]);
         },
 
-        selectFirstCollection: function () {
+        selectFirstCollection() {
             this.selectedContext = this.contextList[0];
             this.selectedCollection = this.collectionList[0];
         },
 
-        selectLastCollection: function () {
+        selectLastCollection() {
             this.selectedContext = this.contextList[0];
             this.selectedCollection = this.collectionList[this.collectionList.length-1];
         },
 
-        getContextList: function () {
+        getContextList() {
             return codapInterface.sendRequest({
                 action: 'get',
                 resource: 'dataContextList'
@@ -87,7 +78,7 @@ const app = new Vue({
             });
         },
 
-        getCollectionList: function () {
+        getCollectionList() {
             return Promise.all(Object.keys(this.data).map(context => {
                 return codapInterface.sendRequest({
                     action: 'get',
@@ -100,7 +91,7 @@ const app = new Vue({
             }));
         },
 
-        getAllCases: function () {
+        getAllCases() {
             return Promise.all(Object.keys(this.data).map((context) => {
                 return Object.keys(this.data[context]).map(collection => {
                     return codapInterface.sendRequest({
@@ -113,7 +104,7 @@ const app = new Vue({
             }).reduce((a,b) => a.concat(b), []));
         },
 
-        start: function () {
+        start() {
             let offset = this.sequencer.offset;
 
             this.sendSelect();
@@ -124,18 +115,18 @@ const app = new Vue({
             });
         },
 
-        stop: function () {
+        stop() {
             if (this.sequencer.ticker) {
                 this.sequencer.ticker.stop();
                 this.sequencer.ticker = null;
             }
         },
 
-        rewind: function () {
+        rewind() {
             this.controls.phaseSlider.value = 0;
         },
 
-        sendSelect: function () {
+        sendSelect() {
             let values = [this.data[this.selectedContext][this.selectedCollection][this.sequencer.offset].id];
 
             codapInterface.sendRequest({
@@ -143,9 +134,23 @@ const app = new Vue({
                 resource: `dataContext[${this.selectedContext}].selectionList`,
                 values: values
             });
+        },
+
+        selectAll(bool) {
+            let values = bool ? this.data[this.selectedContext][this.selectedCollection].map(c => c.id) : [];
+
+            codapInterface.sendRequest({
+                action: 'create',
+                resource: `dataContext[${this.selectedContext}].selectionList`,
+                values: values
+            });
+        },
+
+        openInfoPage() {
+            helper.openSharedInfoPage();
         }
     },
-    mounted: function () {
+    mounted() {
         codapInterface.init({
             name: 'Case Sequencer',
             title: 'Case Sequencer',
@@ -172,16 +177,55 @@ const app = new Vue({
             }
         });
 
+        dragHandler.on('dragenter', (data, els) => {
+            els.forEach(el => {
+                el.style.backgroundColor = 'rgba(255,255,0,0.5)';
+            });
+        });
+
+        dragHandler.on('dragleave', (data, els) => {
+            els.forEach(el => {
+                el.style.backgroundColor = 'transparent';
+            });
+        });
+
+        dragHandler.on('drop', (data, els) => {
+            els.forEach(el => {
+                if (el.id === 'context-menu') {
+                    this.selectedContext = data.context.name;
+                    this.onContextSelected();
+                } else if (el.id === 'collection-menu') {
+                    this.selectedContext = data.context.name;
+                    this.onContextSelected();
+                    this.selectedCollection = data.collection.name;
+                }
+            });
+        });
+
+        dragHandler.on('dragstart', (data, els) => {
+            els.forEach(el => {
+                el.style.outline = '3px solid rgba(0,255,255,0.5)';
+            });
+        });
+        dragHandler.on('dragend', (data, els) => {
+            els.forEach(el => {
+                el.style.backgroundColor = 'transparent';
+                el.style.outline = '3px solid transparent';
+            });
+        });
+
         this.controls.speedSlider = new Nexus.Slider('#speed-slider', {
+            size: [120, 20],
             mode: 'absolute',
             min: 0,
             max: 1,
             step: 0,
-            value: 0
+            value: 0.5
         });
 
         this.controls.speedSlider.on('change', v => {
-            this.sequencer.speed = v * 19 + 1;
+            this.sequencer.speed = dtm.data(v).expc(50,0,1).expc(50,0,1).range(0.1,25,0,1).get(0);
+            console.log(this.sequencer.speed);
 
             if (this.sequencer.ticker) {
                 this.sequencer.ticker.every(1 / this.sequencer.speed);
@@ -189,6 +233,7 @@ const app = new Vue({
         });
 
         this.controls.phaseSlider = new Nexus.Slider('#phase-slider', {
+            size: [120, 20],
             mode: 'absolute',
             min: 0,
             max: 1,
@@ -203,6 +248,14 @@ const app = new Vue({
 
                 this.sendSelect();
             }
+        });
+
+        this.controls.selectAllToggle = new Nexus.Toggle('#select-all-toggle', {
+            size: [40, 20]
+        });
+
+        this.controls.selectAllToggle.on('change', v => {
+            this.selectAll(v);
         });
     }
 });

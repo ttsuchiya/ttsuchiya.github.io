@@ -3,13 +3,21 @@
 <head>
     <meta charset="UTF-8">
     <title>Micro Rhythm</title>
+
     <script type="text/javascript" src="../../Common/js/iframe-phone.js"></script>
     <script type="text/javascript" src="../../Common/js/CodapInterface.js"></script>
-    <script type="text/javascript" src="../lib/CodapHelper.js"></script>
+    <script type="text/javascript" src="../lib/CodapPluginHelper.js"></script>
+    <script type="text/javascript" src="../lib/CodapDragHandler.js"></script>
+
+    <script type="text/javascript" src="../lib/PluginMovesRecorder.js"></script>
+    <script type="text/javascript" src="../common/DataMovesData.js"></script>
+    <script type="text/javascript" src="../common/TransportData.js"></script>
 
     <script type="text/javascript" src="../lib/vue.min.js"></script>
     <script type="text/javascript" src="../lib/NexusUI.js"></script>
     <script type="text/javascript" src="../lib/dtm.min.js"></script>
+
+    <link rel="stylesheet" href="../common/styles.css">
 
     <style type="text/css">
         .controller-container {
@@ -29,11 +37,24 @@
 </head>
 <body>
 <div id="app">
+    <div class="loading-screen" v-if="!csoundReady">Loading the plugin...</div>
+
     <div>
-        <div class="controller-container">
-            <label for="play-toggle">Play</label>
-            <span id="play-toggle"></span>
+        <div style="display: flex; justify-content: left">
+            <div class="controller-container" style="width: 40%;">
+                <label for="play-toggle">Play</label>
+                <span id="play-toggle"></span>
+            </div>
+            <div class="controller-container" style="width: 40%;">
+                <label for="click-toggle">Click</label>
+                <span id="click-toggle"></span>
+            </div>
+            <div class="controller-container" style="width: 40%;">
+                <label for="click-toggle">Sync</label>
+                <span id="sync-toggle"></span>
+            </div>
         </div>
+
         <div class="controller-container">
             <label for="speed-slider">Speed</label>
             <span id="speed-slider"></span>
@@ -43,7 +64,7 @@
     <div class="mapper-container">
         Context
         <label>
-            <select v-model="focusedContext" v-on:change="onContextFocused" id="contextDropArea">
+            <select v-model="focusedContext" v-on:change="onContextFocused" class="drop-area" id="contextDropArea">
                 <option disabled value="" hidden>Select context</option>
                 <option v-for="context in contexts">{{context}}</option>
             </select>
@@ -51,42 +72,113 @@
     </div>
 
     <div class="mapper-container">
-        Pitch Attr
+        Pitch
         <label>
-            <select v-model="pitchAttribute" v-on:change="onPitchAttributeSelected" id="pitchAttrDropArea">
+            <select v-model="pitchAttribute" v-on:change="onPitchAttributeSelectedByUI" class="drop-area" id="pitchAttrDropArea">
                 <option disabled value="" hidden>Select context first</option>
                 <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
             </select>
         </label>
 
         <div>
             <label>
-                <input type="checkbox" v-model="pitchAttrIsDate" v-on:change="onPitchAttributeSelected"> DateTime
+                <input type="checkbox" v-model="pitchAttrIsDate" v-on:change="onPitchAttributeSelectedByUI"> DateTime
             </label>
             <label>
-                <input type="checkbox" v-model="pitchAttrIsDescending" v-on:change="onPitchAttributeSelected"> Descending
+                <input type="checkbox" v-model="pitchAttrIsDescending" v-on:change="onPitchAttributeSelectedByUI"> Descending
             </label>
         </div>
     </div>
 
     <div class="mapper-container">
-        Time Attr
+        Time
         <label>
-            <select v-model="timeAttribute" v-on:change="onTimeAttributeSelected" id="timeAttrDropArea">
+            <select v-model="timeAttribute" v-on:change="onTimeAttributeSelectedByUI" class="drop-area" id="timeAttrDropArea">
                 <option disabled value="" hidden>Select context first</option>
                 <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
             </select>
         </label>
 
         <div>
             <label>
-                <input type="checkbox" v-model="timeAttrIsDate" v-on:change="onTimeAttributeSelected"> DateTime
+                <input type="checkbox" v-model="timeAttrIsDate" v-on:change="onTimeAttributeSelectedByUI"> DateTime
             </label>
             <label>
-                <input type="checkbox" v-model="timeAttrIsDescending" v-on:change="onTimeAttributeSelected"> Descending
+                <input type="checkbox" v-model="timeAttrIsDescending" v-on:change="onTimeAttributeSelectedByUI"> Descending
             </label>
         </div>
     </div>
+
+    <hr>
+
+    <div class="mapper-container">
+        Duration
+        <label>
+            <select v-model="durationAttribute" v-on:change="onDurationAttributeSelectedByUI" class="drop-area" id="durationAttrDropArea">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+
+        <div>
+            <label>
+                <input type="checkbox" v-model="durationAttrIsDate" v-on:change="onDurationAttributeSelectedByUI"> DateTime
+            </label>
+            <label>
+                <input type="checkbox" v-model="durationAttrIsDescending" v-on:change="onDurationAttributeSelectedByUI"> Descending
+            </label>
+        </div>
+    </div>
+
+    <div class="mapper-container">
+        Loudness
+        <label>
+            <select v-model="loudnessAttribute" v-on:change="onLoudnessAttributeSelectedByUI" class="drop-area" id="loudnessAttrDropArea">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+
+        <div>
+            <label>
+                <input type="checkbox" v-model="loudnessAttrIsDate" v-on:change="onLoudnessAttributeSelectedByUI"> DateTime
+            </label>
+            <label>
+                <input type="checkbox" v-model="loudnessAttrIsDescending" v-on:change="onLoudnessAttributeSelectedByUI"> Descending
+            </label>
+        </div>
+    </div>
+
+    <div class="mapper-container">
+        Stereo
+        <label>
+            <select v-model="stereoAttribute" v-on:change="onStereoAttributeSelectedByUI" class="drop-area" id="stereoAttrDropArea">
+                <option disabled value="" hidden>Select context first</option>
+                <option v-for="attribute in attributes">{{attribute}}</option>
+                <option v-if="globals.length" disabled>──────────</option>
+                <option v-if="globals.length" v-for="global in globals.map(g => g.name)">{{global}}</option>
+            </select>
+        </label>
+
+        <div>
+            <label>
+                <input type="checkbox" v-model="stereoAttrIsDate" v-on:change="onStereoAttributeSelectedByUI"> DateTime
+            </label>
+            <label>
+                <input type="checkbox" v-model="stereoAttrIsDescending" v-on:change="onStereoAttributeSelectedByUI"> Descending
+            </label>
+        </div>
+    </div>
+
+    <hr>
 
     <div class="mapper-container">
         Synthesis
@@ -96,6 +188,14 @@
                 <option v-for="csdFile in csdFiles">{{csdFile}}</option>
             </select>
         </label>
+    </div>
+
+    <div id="footer-container">
+        <img src="../images/Icon-round-Question_mark.svg" alt="Information" draggable="false" @click="openInfoPage">
+        <img src="../images/Simpleicons_Interface_link-interface-symbol-1.svg" draggable="true" ondragstart="(ev => {
+            ev.dataTransfer.setData('text', window.location.href);
+            ev.dataTransfer.setData('url', window.location.href);
+        })(event)">
     </div>
 </div>
 <script type="text/javascript" src="app.js"></script>

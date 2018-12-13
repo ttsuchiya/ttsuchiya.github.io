@@ -37,9 +37,7 @@ WAM["printErr"] = (t) => messageHandler(t);
 AudioWorkletGlobalScope.libcsound(WAM);
 
 // SETUP FS
-
 let FS = WAM["FS"];
-
 
 
 // Get cwrap-ed functions
@@ -170,6 +168,8 @@ class CsoundProcessor extends AudioWorkletProcessor {
         this.cnt = cnt;
         this.status = status;
 
+        // view[0] += 1;
+        // WAM['p'].postMessage(['test', view[0]]);
         return true;
     }
 
@@ -286,7 +286,7 @@ class CsoundProcessor extends AudioWorkletProcessor {
             let cstable = new Float32Array(data[2]);
             for(let i = 0; i < cstable.length; i++)
                 Csound.setTable(this.csObj, data[1], i, cstable[i]);
-            break;         
+            break;
         default:
             console.log('[CsoundAudioProcessor] Invalid Message: "' + event.data);
         }
