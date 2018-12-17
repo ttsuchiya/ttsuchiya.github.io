@@ -10,11 +10,11 @@ const app = new Vue({
         plugins: null
     },
     methods: {
-        dragstart(plugin, event) {
-            let url = this.getPluginURL(plugin);
-            event.dataTransfer.setData('text', url);
-            event.dataTransfer.setData('url', url);
-        },
+        // dragstart(plugin, event) {
+        //     let url = this.getPluginURL(plugin);
+        //     event.dataTransfer.setData('text', url);
+        //     event.dataTransfer.setData('url', url);
+        // },
         getPluginURL(plugin) {
             let location = window.location.pathname;
             let path = location.split('/').slice(0,-2).concat(plugin.location,'index.html').join('/');

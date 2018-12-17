@@ -41,7 +41,8 @@
 <body>
 <div id="app">
     <div id="header">Click to open</div>
-    <div class="draggable-block" v-for="plugin in plugins" draggable="true" v-on:dragstart="dragstart(plugin,$event)" @click="openPlugin(plugin)">{{plugin.name}}</div>
+    <!--<div class="draggable-block" v-for="plugin in plugins" draggable="true" v-on:dragstart="dragstart(plugin,$event)" @click="openPlugin(plugin)">{{plugin.name}}</div>-->
+    <div class="draggable-block" v-for="plugin in plugins" draggable="true" @click="openPlugin(plugin)">{{plugin.name}}</div>
     <div id="footer-container">
         Click for info <img src="../images/Arrow_right_font_awesome.svg" style="height:70%" alt="right" draggable="false">
         <img id="info-icon" src="../images/Icon-round-Question_mark.svg" alt="Information" draggable="false" @click="openInfoPage">
