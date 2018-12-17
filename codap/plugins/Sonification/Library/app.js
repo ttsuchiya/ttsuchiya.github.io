@@ -20,6 +20,9 @@ const app = new Vue({
             let path = location.split('/').slice(0,-2).concat(plugin.location,'index.html').join('/');
             return window.location.origin + path;
         },
+        openPlugin(pluginData) {
+            helper.openPlugin(pluginData);
+        },
         openInfoPage() {
             helper.openSharedInfoPage();
         }

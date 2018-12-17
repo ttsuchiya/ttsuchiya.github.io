@@ -614,7 +614,7 @@ class CodapPluginHelper {
 
         let path = location.split('/').slice(0,-2).concat('common','info.html').join('/');
 
-        return codapInterface.sendRequest({
+        return this.codapInterface.sendRequest({
             action: 'create',
             resource: 'component',
             values: {
@@ -624,6 +624,25 @@ class CodapPluginHelper {
                 URL: `${origin}${path}?dir=${directory}&file=${file}`,
                 dimensions: dimensions,
                 position: 'top'
+            }
+        });
+    }
+
+    openPlugin(plugin) {
+        let location = window.location.pathname;
+        let origin = window.location.origin;
+        let path = location.split('/').slice(0,-2).concat(plugin.location,'index.html').join('/');
+        let url = `${origin}${path}`;
+
+        return this.codapInterface.sendRequest({
+            action: 'create',
+            resource: 'component',
+            values: {
+                type: 'game',
+                name: plugin.name,
+                URL: url,
+                title: plugin.name,
+                cannotClose: false
             }
         });
     }

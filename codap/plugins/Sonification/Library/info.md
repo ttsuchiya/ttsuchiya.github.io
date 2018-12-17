@@ -3,7 +3,7 @@ This plugin library hosts the data sonification plugins for CODAP. [Sonification
 
 CODAP does not do spatial audio (yet), but it offers a lot of simple sonification plugins that you can flexibly combine for data exploration, storytelling, and even composing music.
 
-To get started, drag the first item of this plugin (**Simple Spectrum**) into an open space in CODAP, and follow the instructions there by pressing the "?" button.
+To get started, click to open the first item of this plugin (**Simple Spectrum**) and follow the instructions there by pressing the "?" button.
 
 ## Furthermore
 Please contact Takahiko Tsuchiya at takahiko@gatech.edu if you have questions or find bugs.
