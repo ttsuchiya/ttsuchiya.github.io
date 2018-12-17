@@ -602,6 +602,7 @@ class CodapPluginHelper {
 
     openSharedInfoPage(dimensions={width:400,height:600}, title, directory, file='info.md') {
         let location = window.location.pathname;
+        let origin = window.location.origin;
 
         if (!title) {
             title = `${this.name} Info`;
@@ -611,7 +612,7 @@ class CodapPluginHelper {
             directory = location.split('/').slice(-2,-1)[0];
         }
 
-        let urlString = location.split('/').slice(0,-2).concat('common','info.html').join('/');
+        let path = location.split('/').slice(0,-2).concat('common','info.html').join('/');
 
         return codapInterface.sendRequest({
             action: 'create',
@@ -620,7 +621,7 @@ class CodapPluginHelper {
                 type: 'webView',
                 name: title,
                 title: title,
-                URL: `${urlString}?dir=${directory}&file=${file}`,
+                URL: `${origin}${path}?dir=${directory}&file=${file}`,
                 dimensions: dimensions,
                 position: 'top'
             }
