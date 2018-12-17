@@ -79,3 +79,7 @@ html, body {
     margin: 3px;
     z-index: 1000;
 }
+
+#draggable-link {
+    display: none;
+}

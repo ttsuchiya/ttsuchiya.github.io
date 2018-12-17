@@ -95,8 +95,8 @@
     </div>
 
     <div id="footer-container">
-        <img src="../images/Icon-round-Question_mark.svg" alt="Information" draggable="false" @click="openInfoPage">
-        <img src="../images/Simpleicons_Interface_link-interface-symbol-1.svg" draggable="true" ondragstart="(ev => {
+        <img id="info-icon" src="../images/Icon-round-Question_mark.svg" alt="Information" draggable="false" @click="openInfoPage">
+        <img id="draggable-link" src="../images/Simpleicons_Interface_link-interface-symbol-1.svg" draggable="true" ondragstart="(ev => {
             ev.dataTransfer.setData('text', window.location.href);
             ev.dataTransfer.setData('url', window.location.href);
         })(event)">
