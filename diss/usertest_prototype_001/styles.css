@@ -1,0 +1,136 @@
+:root {
+  --left-container-width: 0;
+  --left-container-height: 0;
+  --right-container-width: 0;
+  --right-container-height: 0;
+  --slider-box-width: 0;
+  --slider-box-height: 0;
+  --player-box-width: 0;
+  --player-box-height: 0;
+}
+
+#app {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex-direction: column;
+  font-family: sans-serif;
+}
+
+#header {
+  width: var(--left-container-width);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  flex-direction: column;
+}
+
+#title {
+  width: 100%;
+  display: flex;
+  justify-content: center;
+  margin: 10px;
+  font-size: 18px;
+}
+
+#header-items {
+  width: 100%;
+  display: flex;
+  flex-direction: row;
+  justify-content: space-between;
+  align-items: center;
+  margin: 5px;
+}
+
+#slider-container {
+  position: relative;
+  width: var(--slider-box-width);
+  height: var(--slider-box-height);
+  border: solid;
+}
+
+#sliders {
+  display: flex;
+  height: 100%;
+  width: 100%;
+  justify-content: space-around;
+  align-items: center;
+  z-index: 0;
+}
+
+#slider-backgrounds {
+  height: 100%;
+  width: 100%;
+  position: absolute;
+  top: 0;
+  left: 0;
+  z-index: 1;
+}
+
+.vslider {
+  z-index: 2;
+}
+
+#player-container {
+  position: relative;
+  width: var(--player-box-width);
+  height: var(--player-box-height);
+  border: solid;
+  margin-top: 10px;
+}
+
+#playhead, #player-background, #waveform, #spectrum {
+  position: absolute;
+  top: 0;
+  left: 0;
+}
+
+#waveform, #spectrum {
+  z-index: 0;
+}
+#playhead {
+  z-index: 1;
+}
+#player-background {
+  z-index: 2;
+}
+
+#waveform, #spectrum {
+  height: 100%;
+  width: 100%;
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+}
+
+#controls {
+  width: var(--left-container-width);
+  height: 60px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+#controls button {
+  font-size: 20px;
+  cursor: pointer;
+}
+
+#controls button:focus {
+  outline: 0;
+}
+
+#sound-attribute-instruction {
+  display: flex;
+  justify-content: center;
+}
+
+#sound-attributes {
+  -webkit-column-count: 3;
+  -moz-column-count: 3;
+  column-count: 3;
+  width: var(--left-container-width);
+  padding-inline-start: 10px;
+  padding-inline-end: 10px;
+  font-size: 17px;
+}

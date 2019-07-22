@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Timbral Sonification Listening Test</title>
+  <script src="node_modules/vue/dist/vue.min.js"></script>
+  <script src="node_modules/d3/dist/d3.min.js"></script>
+  <script src="node_modules/lodash/lodash.min.js"></script>
+  <script src="lib/NexusUI.js"></script>
+  <script src="lib/dtm.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+<div id="app" :style="cssProps">
+  <div id="header">
+    <div id="title">{{info.title}}</div>
+    <div id="header-items">
+      <button>Instructions</button>
+      <button>Consent Form</button>
+      <button>Report Error</button>
+      <div>{{currentStage}}/{{totalStages}}</div>
+    </div>
+  </div>
+  <div id="left-container">
+    <div id="slider-container">
+      <div id="slider-backgrounds"></div>
+      <div id="sliders">
+        <div v-for="id in sliders" v-bind:id="id" class="vslider"></div>
+      </div>
+    </div>
+
+    <div id="player-container">
+      <div id="player-background"></div>
+      <div id="waveform">
+        <canvas></canvas>
+      </div>
+      <div id="spectrum">
+        <canvas></canvas>
+      </div>
+      <div id="playhead"></div>
+    </div>
+
+    <div id="controls">
+      <button v-on:click="play()">Play</button>
+      <button v-on:click="stop()">Stop</button>
+      <button v-on:click="toggleLoop()" v-bind:style="{'background-color':loopToggleColor}">Loop</button>
+      <button v-on:click="proceed()">{{proceedButtonText}}</button>
+    </div>
+  </div>
+  <div id="right-container">
+
+  </div>
+
+  <div>
+    <div id="sound-attribute-instruction">
+      Please pick up to {{attrSelectionMax}} word pairs that best describe the character / motion of this sound.
+    </div>
+    <ul id="sound-attributes">
+      <div v-for="(item,index) in soundAttributes">
+        <input type="checkbox" :value="item" v-model="selectedAttributes" v-on:change="checkAttrSelection($event)" ref="attrSelectables"/> {{item}}
+      </div>
+    </ul>
+  </div>
+<!--  <div>-->
+<!--    <textarea name="user sound description" cols="30" rows="10" placeholder="Please try describing the sound."></textarea>-->
+<!--  </div>-->
+  <div id="footer"></div>
+
+</div>
+<script type="module" src="app.js"></script>
+</body>
+</html>
