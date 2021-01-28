@@ -3,7 +3,7 @@ This was my 4-month development project at Electronic Music Production and Sound
 
 ---
 <p style="text-align: center;">Prototype 1-3</p>
-<p style="text-align: center;"><iframe src="http://player.vimeo.com/video/41556188?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="313" width="500" frameborder="0"></iframe></p>
+<p style="text-align: center;"><iframe src="https://player.vimeo.com/video/41556188?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="313" width="500" frameborder="0"></iframe></p>
 
 ---
 <p style="text-align: center;">Prototype 4 Overview</p>
@@ -83,4 +83,4 @@ This was my 4-month development project at Electronic Music Production and Sound
 <p><a href="http://www.loadmess.com/wp-content/uploads/2012/11/HistMatch.maxpat.zip">source</a> (Max)</p>
 <p>&nbsp;</p>
 <p style="text-align: center;">Glove Test: Parallel Mapping / Inertial Control</p>
-<p style="text-align: center;"><iframe src="http://player.vimeo.com/video/55902774?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="313" width="500" frameborder="0"></iframe></p>
+<p style="text-align: center;"><iframe src="https://player.vimeo.com/video/55902774?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="313" width="500" frameborder="0"></iframe></p>

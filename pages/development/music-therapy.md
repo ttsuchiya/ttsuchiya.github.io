@@ -3,16 +3,16 @@ Between 2011-2013, I was involved in developer collaborations with multiple grou
 
 ---
 <p style="text-align: center;">Speech-based tool for Blind Musicians</p>
-<p style="text-align: center;"><iframe src="http://player.vimeo.com/video/53085345?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="314" width="500" frameborder="0"></iframe></p>
+<p style="text-align: center;"><iframe src="https://player.vimeo.com/video/53085345?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="314" width="500" frameborder="0"></iframe></p>
 <p>Professor Chi Kim from the AMT lab (Assistive Music Technology Lab for blind musicians at Berklee) asked me to create a software that can read chord symbols from leadsheets and the Realbook.</p>
 <p>Tools used: Max/MSP, JavaScript, C</p>
 
 ---
 <p style="text-align: center;">Music Therapy Bio-sensor Programs</p>
-<p style="text-align: center;"><iframe src="http://player.vimeo.com/video/53085346?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="375" width="500" frameborder="0"></iframe></p>
+<p style="text-align: center;"><iframe src="https://player.vimeo.com/video/53085346?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="375" width="500" frameborder="0"></iframe></p>
 <p style="text-align: center;">© Dr. Suzanne Hanser, Dr. Susan Mandel</p>
 <p>&nbsp;</p>
-<p style="text-align: center;"><iframe src="http://player.vimeo.com/video/21578497?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="281" width="500" frameborder="0"></iframe></p>
+<p style="text-align: center;"><iframe src="https://player.vimeo.com/video/21578497?title=0&amp;byline=0&amp;portrait=0&amp;badge=0" height="281" width="500" frameborder="0"></iframe></p>
 <p style="text-align: center;">Tools used: Max/MSP, i-Cube sensors: BrainWave, EKG, GSR, + wifi-Digitizer</p>
 
 ---

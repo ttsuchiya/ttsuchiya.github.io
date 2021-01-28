@@ -59,4 +59,4 @@
 
 ---
 <iframe width="100%" height="166" scrolling="no" frameborder="no" src="https://w.soundcloud.com/player?url=http%3A%2F%2Fapi.soundcloud.com%2Ftracks%2F55315378&auto_play=false&show_comments=false&color=ff7700&show_artwork=true&show_user=false&show_playcount=false&liking=false&sharing=false"></iframe>
-<p>An impression piece written for a <a title="photo" href="http://www.trekearth.com/gallery/Asia/India/photo450953.htm" target="_blank">photo</a> © Partha Pal</p>
+<p>An impression piece written for a <a title="photo" href="https://www.trekearth.com/gallery/Asia/India/photo450953.htm" target="_blank">photo</a> © Partha Pal</p>
