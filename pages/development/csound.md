@@ -1,4 +1,4 @@
-<p>Csound is a quite versatile audio synthesis software. However, it&#8217;s native language lacks a little in the interfacing aspects, such as real-time control input and visual output, where other developing environment such as Max/MSP that wraps the Csound API comes handy. Here I will introduce some of the Csound instruments built within MaxForLive as well as Android.</p>
+Csound is a quite versatile audio synthesis software. However, its default package lacks a little in the interfacing aspects, such as real-time control input and visual output, where other GUI-based environment such as Max/MSP that can host the Csound engine comes handy. Here I introduce some of the Csound instruments built with MaxForLive as well as Android.
 
 ---
 <p style="text-align: center;"><a title="Csound For Live" href="http://www.csoundforlive.com/" target="_blank">Csound For Live</a> Project</p>

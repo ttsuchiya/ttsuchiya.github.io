@@ -1,5 +1,5 @@
 # Time-Stretching Performance System
-<p style="text-align: left;">This was my 4-month development project at Electronic Music Production and Sound Design major at Berklee, in Spring 2012. I wanted to employ all my learning and experience in EPD &#8211; production, programming, and artistic expressions, but also wanted to try a new and challenging project for me.</p>
+This was my 4-month development project at Electronic Music Production and Sound Design major at Berklee, in Spring 2012. I wanted to employ all my learning and experience in EPD &#8211; production, programming, and artistic expressions, but also wanted to try a new and challenging project for me.
 
 ---
 <p style="text-align: center;">Prototype 1-3</p>

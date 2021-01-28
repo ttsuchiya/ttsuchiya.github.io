@@ -1,5 +1,5 @@
 # Music Therapy and Assistive Tech
-<p>Between 2011-2013, I was involved in developer collaborations with multiple departments at Berklee &#8211; especially the Music Therapy major and blind musicians. These projects have been great benefit for me for learning new skills and widening scope in developing. Here are the outcomes of the projects, not including the prototypes and experiments we did.</p>
+Between 2011-2013, I was involved in developer collaborations with multiple groups at Berklee College of Music; particularly the Music Therapy department and visually-impaired musicians. These projects have been a great benefit for me for picking up interdisciplinary technical skills and widening the scope in developing. Here are the outcomes of the projects, not including the prototypes and experiments we did.
 
 ---
 <p style="text-align: center;">Speech-based tool for Blind Musicians</p>
