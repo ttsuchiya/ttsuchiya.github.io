@@ -1,5 +1,5 @@
 # TAKAHIKO TSUCHIYA
-I am a PhD candidate (grad. May 2021) at Georgia Tech specialized in web technologies and creating multimodal (auditory / visual) interfaces for exploratory data analysis.
+I am an audio software developer specialized in web technologies and creating multimodal (auditory / visual) interfaces for exploratory data analysis.
 
 ![Lake Tahoe](/media/images/UNADJUSTEDNONRAW_thumb_28b8.jpg)
 
